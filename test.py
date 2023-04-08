@@ -1,4 +1,3 @@
-import mysql.connector as sqldb
 from sqlalchemy import create_engine,text
 from datetime import timedelta
 import pandas as pd
@@ -27,31 +26,23 @@ def calvalue(cost,volume,weight,order_value):
     dict['TransitDuty'] = cost['TransitDuty']*order_value
     return dict
 def variablefinder(travelmode,initial,final):
+    #dataslice is a specific row which contain data specific to (travelmode,initial,final) 
+    dataslice = data.loc[data['Travel_Mode'] == travelmode and data['Source']  == initial  and data['Destination'] == final]
     variable = {}
-    variable['custom_clearance_time'] = timeMatrix[0,travelmodes.index(travelmode),nodes.index(initial),nodes.index(final)]
-    variable['Port_Airport_RailHandling_Time'] = timeMatrix[1,travelmodes.index(travelmode),nodes.index(initial),nodes.index(final)]
-    variable['extra_time'] = timeMatrix[2,travelmodes.index(travelmode),nodes.index(initial),nodes.index(final)]
-    variable['transit_time'] = timeMatrix[3,travelmodes.index(travelmode),nodes.index(initial),nodes.index(final)]
-    variable['FixedFreightCost'] = costMatrix[0,travelmodes.index(travelmode),nodes.index(initial),nodes.index(final)]
-    variable['VariableFreightCost'] = costMatrix[1,travelmodes.index(travelmode),nodes.index(initial),nodes.index(final)]
-    variable['Port_Airport_RailHandlingCost'] = costMatrix[2,travelmodes.index(travelmode),nodes.index(initial),nodes.index(final)]
-    variable['Bunker_FuelCost'] = costMatrix[3,travelmodes.index(travelmode),nodes.index(initial),nodes.index(final)]
-    variable['DocumentationCost'] = costMatrix[4,travelmodes.index(travelmode),nodes.index(initial),nodes.index(final)]
-    variable['EquipmentCost'] = costMatrix[5,travelmodes.index(travelmode),nodes.index(initial),nodes.index(final)]
-    variable['ExtraCost'] = costMatrix[6,travelmodes.index(travelmode),nodes.index(initial),nodes.index(final)]
-    variable['WarehouseCost'] = costMatrix[7,travelmodes.index(travelmode),nodes.index(initial),nodes.index(final)]
-    variable['TransitDuty'] = costMatrix[8,travelmodes.index(travelmode),nodes.index(initial),nodes.index(final)]
-    variable['MaxVolumePerEquipment'] = miscellaneousMatrix[0,travelmodes.index(travelmode),nodes.index(initial),nodes.index(final)]
-    variable['ConfidenceLevel'] = miscellaneousMatrix[3,travelmodes.index(travelmode),nodes.index(initial),nodes.index(final)]
-    variable['MaxWeightPerEquipment'] = miscellaneousMatrix[1,travelmodes.index(travelmode),nodes.index(initial),nodes.index(final)]
-    variable['VolumetricWeightConversionFactor'] = miscellaneousMatrix[2,travelmodes.index(travelmode),nodes.index(initial),nodes.index(final)]
+    variable['custom_clearance_time'] = dataslice['CustomClearance_time_hours']
+    variable['Port_Airport_RailHandling_Time'] = dataslice['Port_Airport_Rail_Handling_time_hours']
+    variable['extra_time'] = dataslice['Extra_Time']
+    variable['transit_time'] = dataslice['Transit_time_hours']
+    variable['MaxVolumePerEquipment'] = dataslice['Container_Size']
+    variable['ConfidenceLevel'] = dataslice['ConfidenceLevel']
+    variable['MaxWeightPerEquipment'] = dataslice['MaxWeightPerEquipment']
+    variable['VolumetricWeightConversionFactor'] = dataslice['VolumetricWeightConversionFactor']
     return variable
 def pc_new(nid,dest):
     p_ = nid.copy()
     for i in dest:
         p_.remove(i)
     return p_
-print(pc_new(['a','b','c','d','e'],('a',)))
 def path_new(n,nid,volume,weight,order_value,ini,fin='',finaldat={}):
         if n == 0:
             for travelelement in travelmodes:
@@ -139,23 +130,7 @@ def path_new(n,nid,volume,weight,order_value,ini,fin='',finaldat={}):
                         path_new(n-1,pc_new(nid.copy(),(intermediate,)),volume,weight,order_value,intermediate,fin,pt)
 #...    .............................................................................
 nodeindex = nodes.copy()
-timeMatrix = np.zeros((len(times),len(travelmodes),len(nodes),len(nodes)))
-costMatrix = np.zeros((len(costs),len(travelmodes),len(nodes),len(nodes)))
-miscellaneousMatrix = np.zeros((len(miscellaneous),len(travelmodes),len(nodes),len(nodes)))
-ind = data.values.tolist()
-for dataslice in ind:
-    #print(dataslice)
-    sourceindex,destinationindex,travel_mode,CustomClearanceTime,TransitTime,Port_Airport_RailHandlinTime,ExtraTime= nodes.index(dataslice[1]),nodes.index(dataslice[2]),travelmodes.index(dataslice[7]),dataslice[15],dataslice[16],dataslice[17],dataslice[18]
-    FixedFreightCost,VariableFreightCost,Port_Airport_RailHandlingCost,Bunker_Fuel_Cost,DocumentationCost,EquipmentCost,ExtraCost,WarehouseCost,TransitDuty = dataslice[6],dataslice[7],dataslice[8],dataslice[9],dataslice[10],dataslice[11],dataslice[12],dataslice[13],dataslice[14]
-    MaxVolumePerEquipment,ConfidenceLevel,MaxWeightPerEquipment,VolumetricWeightConversionFactor = dataslice[2],dataslice[19],dataslice[3],dataslice[4]
-    for i in times:
-        timeMatrix[times.index(i),travel_mode,sourceindex,destinationindex] = dataslice[columns.index(i)]
-    for i in costs:
-        costMatrix[costs.index(i),travel_mode,sourceindex,destinationindex] = dataslice[columns.index(i)]
-    for i in miscellaneous:
-        miscellaneousMatrix[miscellaneous.index(i),travel_mode,sourceindex,destinationindex] = dataslice[columns.index(i)]
-#........................................................................................
-#print(timm,daym,cc,sep='\n')
+#deleted here since it isn't needed (switched to pandas)
 x,x_ = 0,0
 for inputslice in order_data.values.tolist():
     for n in range(1):
@@ -168,60 +143,4 @@ for inputslice in order_data.values.tolist():
         x_ = x + 1
         continue
     x_ = x
-dat= {}
-dat['Order_no'] = []
-dat['Stops'] = []
-dat['Ship_From'] = []
-dat['Ship_To'] = []
-dat['Route'] = []
-dat['Mode'] = []
-dat['FixedFreightCost'] = []
-dat['VariableFreightCost'] = []
-dat['Port_Airport_RailHandlingCost'] = []
-dat['Bunker_FuelCost'] = []
-dat['DocumentationCost'] = []
-dat['EquipmentCost'] = []
-dat['ExtraCost'] = []
-dat['WarehouseCost'] =[]
-dat['TransitDuty'] = []
-dat['custom_clearance_time'] = []
-dat['Port_Airport_RailHandling_Time'] = []
-dat['extra_time'] = []
-dat['transit_time'] = []
-dat['ConfidenceLevel'] = []
-dat['Order_date'] = []
-dat['Required_Delivery_Date'] = []
-for i in t:
-    for j in i:
-        if j == 'MaxVolumePerEquipment':
-            continue
-        dat[j].append(i[j])
-df = pd.DataFrame(dat)
-if 'Path not available' not in  dat['custom_clearance_time']:
-    df['Total_time'] = df['custom_clearance_time'] + df['Port_Airport_RailHandling_Time'] + df['extra_time'] + df['transit_time'] 
-    df['Total_cost'] = df['FixedFreightCost'] + df['VariableFreightCost'] + df['Port_Airport_RailHandlingCost'] + df['Bunker_FuelCost'] + df['DocumentationCost'] + df['EquipmentCost'] + df['ExtraCost'] + df['WarehouseCost'] + df['TransitDuty']
-else:
-    df['Total_time'] = 0
-    df['Total_cost'] = 0
-Plan_Ship_Date = []
-Actual_Delivery_Date = []
-for dates in range(len(df['Order_date'])):
-    try:
-        if df['Total_time'][dates] == 'Path not available' or np.isnan(df['Order_date'][dates]):
-            Actual_Delivery_Date += [np.nan] 
-            continue
-    except:
-        pass
-    Actual_Delivery_Date += [df['Order_date'][dates]+  timedelta(df['Total_time'][dates]/24)]
-for dates in range(len(df['Required_Delivery_Date'])):
-    try:
-        if  df['Total_time'][dates] == 'Path not available'  or  np.isnan(df['Required_Delivery_Date'][dates]):
-            Plan_Ship_Date += [np.nan] 
-            continue
-    except:
-        pass
-    Plan_Ship_Date += [df['Required_Delivery_Date'][dates] -  timedelta(df['Total_time'][dates]/24)]
-df['Plan_Ship_Date'] = Plan_Ship_Date
-df['Actual_Delivery_Date'] = Actual_Delivery_Date
-df.to_sql('model_data',con = db_connection,if_exists='append',index = False)
-db_connection.commit()
+#deleted this part for new method
