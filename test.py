@@ -1,5 +1,5 @@
 from sqlalchemy import create_engine,text
-from datetime import timedelta
+import datetime
 import pandas as pd
 import numpy as np
 db_connection_str = create_engine('mysql+pymysql://root:0123456789@localhost:3306/again')
@@ -26,44 +26,49 @@ def calvalue(cost,volume,weight,order_value):
     dict['TransitDuty'] = cost['TransitDuty']*order_value
     return dict
 def variablefinder(travelmode,initial,final):
-    #dataslice is a specific row which contain data specific to (travelmode,initial,final) 
-    dataslice = data.loc[data['Travel_Mode'] == travelmode and data['Source']  == initial  and data['Destination'] == final]
     variable = {}
-    variable['custom_clearance_time'] = dataslice['CustomClearance_time_hours']
-    variable['Port_Airport_RailHandling_Time'] = dataslice['Port_Airport_Rail_Handling_time_hours']
-    variable['extra_time'] = dataslice['Extra_Time']
-    variable['transit_time'] = dataslice['Transit_time_hours']
-    variable['MaxVolumePerEquipment'] = dataslice['Container_Size']
-    variable['ConfidenceLevel'] = dataslice['ConfidenceLevel']
-    variable['MaxWeightPerEquipment'] = dataslice['MaxWeightPerEquipment']
-    variable['VolumetricWeightConversionFactor'] = dataslice['VolumetricWeightConversionFactor']
+    if not ((data['Travel_Mode'] == travelmode) & (data['Source']  == initial)  & (data['Destination'] == final)).any():#checks wether a row exist in the dataframe
+        variable['transit_time'] = 0
+        return variable
+    #dataslice is a specific row which contain data specific to (travelmode,initial,final) 
+    dataslice = data.loc[(data['Travel_Mode'] == travelmode) & (data['Source']  == initial)  & (data['Destination'] == final)]
+    variable['custom_clearance_time'] =dataslice['CustomClearance_time_hours'].item()
+    variable['Port_Airport_RailHandling_Time'] = dataslice['Port_Airport_Rail_Handling_time_hours'].item()
+    variable['extra_time'] = dataslice['Extra_Time'].item()
+    variable['transit_time'] = dataslice['Transit_time_hours'].item()
+    variable['MaxVolumePerEquipment'] = dataslice['Container_Size'].item()
+    variable['ConfidenceLevel'] = dataslice['ConfidenceLevel'].item()
+    variable['MaxWeightPerEquipment'] = dataslice['MaxWeightPerEquipment'].item()
+    variable['VolumetricWeightConversionFactor'] = dataslice['VolumetricWeightConversionFactor'].item()
+    variable['Carrier'] = dataslice['Carrier'].item()
     return variable
 def pc_new(nid,dest):
     p_ = nid.copy()
     for i in dest:
         p_.remove(i)
     return p_
-def path_new(n,nid,volume,weight,order_value,ini,fin='',finaldat={}):
+def path_new(n,nid,date,ini,fin,finaldat=()):
         if n == 0:
             for travelelement in travelmodes:
                 variable = variablefinder(travelelement,ini,fin)
-                cost = calvalue(variable,volume,weight,order_value)
                 if  variable['transit_time']:
-                    finaldat['Route'] = ini + ' -->' + fin
-                    finaldat['Mode'] = travelelement
-                    variable.update(cost)
-                    variable.pop('MaxVolumePerEquipment')
-                    variable.pop('MaxWeightPerEquipment')
-                    variable.pop('VolumetricWeightConversionFactor')
-                    finaldat.update(variable)
+                    destination = fin
+                    source = ini
+                    carrier = variable['Carrier']
+                    container_size = variable['MaxVolumePerEquipment']
+                    MWpE = variable['MaxWeightPerEquipment']
+                    VWcF = variable['VolumetricWeightConversionFactor']
+                    total_time = variable['custom_clearance_time'] + variable['Port_Airport_RailHandling_Time'] + variable['extra_time'] + variable['transit_time']
+                    date_new = date - datetime.timedelta(hours=total_time) #subtracts time by some hours
+                    week_new = date_new.strftime('%Y-%V')#in the format YYYY-WW eg. 2023-06
+                    finaldat = destination,source,carrier,container_size,MWpE,VWcF,total_time,date_new,week_new,
                     t.append(finaldat)
-                    return
+            return
         if n == 1:
             for intermediate in nid:
                 #print(nid)
                 for travelelement in travelmodes:
                     variable = variablefinder(travelelement,ini,intermediate)
-                    cost = calvalue(variable,volume,weight,order_value)
                     if variable['transit_time']:
                         if intermediate in finaldat['Route']:
                             continue
@@ -76,15 +81,12 @@ def path_new(n,nid,volume,weight,order_value,ini,fin='',finaldat={}):
                         else:
                             pt['Mode'] = travelelement
                             pt['ConfidenceLevel'] = variable['ConfidenceLevel']
-                        variable.update(cost)
                         for travelelement2 in travelmodes:
                             variable2 = variablefinder(travelelement2,intermediate,fin)
-                            cost2 = calvalue(variable2,volume,weight,order_value)
                             if variable2['transit_time']:
                                 pt['Route'] += '-->' + fin
                                 pt['Mode'] += ',' + travelelement2
                                 pt['ConfidenceLevel'] *= variable2['ConfidenceLevel']
-                                variable2.update(cost2)
                                 variable.pop('ConfidenceLevel') 
                                 variable.pop('MaxVolumePerEquipment')
                                 variable.pop('MaxWeightPerEquipment')
@@ -103,7 +105,6 @@ def path_new(n,nid,volume,weight,order_value,ini,fin='',finaldat={}):
             for intermediate in nid:
                 for travelelement in travelmodes:
                     variable = variablefinder(travelelement,ini,intermediate)
-                    cost = calvalue(variable,volume,weight,order_value)
                     if variable['transit_time']:
                         if intermediate in finaldat['Route']:
                             continue
@@ -117,7 +118,6 @@ def path_new(n,nid,volume,weight,order_value,ini,fin='',finaldat={}):
                             pt['Route'] += '-->' + intermediate
                             pt['Mode']  = travelelement
                             pt['ConfidenceLevel'] = variable['ConfidenceLevel']
-                        variable.update(cost)
                         variable.pop('ConfidenceLevel') 
                         variable.pop('MaxVolumePerEquipment')
                         variable.pop('MaxWeightPerEquipment')
@@ -127,14 +127,15 @@ def path_new(n,nid,volume,weight,order_value,ini,fin='',finaldat={}):
                                 pt[i] += variable[i]
                             else:
                                 pt[i] = variable[i]
-                        path_new(n-1,pc_new(nid.copy(),(intermediate,)),volume,weight,order_value,intermediate,fin,pt)
+                        path_new(n-1,pc_new(nid.copy(),(intermediate,)),intermediate,fin,pt)#needs to be changed
 #...    .............................................................................
 nodeindex = nodes.copy()
 #deleted here since it isn't needed (switched to pandas)
 x,x_ = 0,0
 for inputslice in order_data.values.tolist():
     for n in range(1):
-        path_new(n,pc_new(nodeindex,(inputslice[1],inputslice[2])),inputslice[5],inputslice[4],inputslice[3],inputslice[1],inputslice[2],{'Order_no':inputslice[0],'Stops':n,'Ship_From':inputslice[1],'Ship_To':inputslice[2],'Route':inputslice[1],'Order_date':inputslice[6],'Required_Delivery_Date':inputslice[7]})
+        path_new(n,pc_new(nodeindex,(inputslice[1],inputslice[2])),inputslice[7],inputslice[1],inputslice[2],())
+    #--------------------should be adressed
     x = len(t)
     if x == x_:
         x_ = {'Order_no':inputslice[0],'Stops':n,'Ship_From':inputslice[1],'Ship_To':inputslice[2],'Order_date':inputslice[6],'Required_Delivery_Date':inputslice[7]}
@@ -143,4 +144,5 @@ for inputslice in order_data.values.tolist():
         x_ = x + 1
         continue
     x_ = x
+    #--------------------should be adressed
 #deleted this part for new method
