@@ -9,7 +9,8 @@ order_data = pd.read_sql(text('select * from model_data_order'),db_connection)
 nodes = pd.unique(data[['Source','Destination']].values.ravel('k')).tolist()
 travelmodes = data['Travel_Mode'].unique().tolist()
 t = []
-d = {}
+d_route = {}
+d_consoildate = {}
 def calvalue(cost,volume,weight,order_value):
     dict = {}
     dict['FixedFreightCost'] = cost['FixedFreightCost']*np.max((np.ceil(volume/cost['MaxVolumePerEquipment']),np.ceil(weight/cost['MaxWeightPerEquipment'])))
@@ -108,12 +109,34 @@ def route(n,nid,date,ini,fin,finaldat=()):#finaldat is in tuple because of the p
                         week_new = date_new.strftime('%Y-%V')
                         pt.append((source,destination,carrier,container_size,MWpE,VWcF,total_time,date_new,week_new))
                         route(n-1,pc_new(nid.copy(),(intermediate,)),date_new,ini,intermediate,tuple(pt))
+def consoidation(orderno,route,routedictionary,consolidant = ()):
+    if len(route) == 0:
+        return consolidant
+    routeslice = route[0]
+    to_consolidate_df = pd.DataFrame(routeslice,columns=['Source','Destination','Carrier','Container_Size','MWpE','VWcF','Total_Time','Date','Week'])
+    for  orderindex in routedictionary:
+        if orderindex == orderno:
+            continue
+        routetuple = routedictionary[orderindex]
+        for root in routetuple:
+            from_df = pd.DataFrame(root,columns=['Source','Destination','Carrier','Container_Size','MWpE','VWcF','Total_Time','Date','Week'])
+            if not ((from_df['Source'] == to_consolidate_df['Source']) & (from_df['Destination'] == to_consolidate_df['Destination']) & (from_df['Week'] == to_consolidate_df['Week'])).any():
+                continue
+            to_consolidate_df['consoildindex'] = (orderindex,routetuple.index(root))
+            pt = list(consolidant)
+            pt.append(tuple(to_consolidate_df.values.tolist()))
+            consoidation(orderno,route[1:],routedictionary,tuple(pt))
+def consolidate_Routes(routes):
+    for orderindex in routes:
+        for route in routes[orderindex]:
+            t.append(consoidation(orderindex,route,routes))
+        d_consoildate[orderindex] = tuple(t)
 #................................................................................
 nodeindex = nodes.copy()
 #deleted here since it isn't needed (switched to pandas)
 for inputslice in order_data.values.tolist():
     for n in range(1,3):
         route(n,pc_new(nodeindex,(inputslice[1],inputslice[2])),inputslice[7],inputslice[1],inputslice[2],())
-    d[(inputslice[0],inputslice[3],inputslice[4],inputslice[5])] = tuple(t)#storing routes belonging to different orders with dictionary
+    d_route[(inputslice[0],inputslice[3],inputslice[4],inputslice[5])] = tuple(t)#storing routes belonging to different orders with dictionary
     t.clear()
 #deleted this part for new method
