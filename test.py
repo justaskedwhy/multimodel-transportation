@@ -9,6 +9,7 @@ order_data = pd.read_sql(text('select * from model_data_order'),db_connection)
 nodes = pd.unique(data[['Source','Destination']].values.ravel('k')).tolist()
 travelmodes = data['Travel_Mode'].unique().tolist()
 t = []
+d = {}
 def calvalue(cost,volume,weight,order_value):
     dict = {}
     dict['FixedFreightCost'] = cost['FixedFreightCost']*np.max((np.ceil(volume/cost['MaxVolumePerEquipment']),np.ceil(weight/cost['MaxWeightPerEquipment'])))
@@ -107,10 +108,12 @@ def route(n,nid,date,ini,fin,finaldat=()):#finaldat is in tuple because of the p
                         week_new = date_new.strftime('%Y-%V')
                         pt.append((source,destination,carrier,container_size,MWpE,VWcF,total_time,date_new,week_new))
                         route(n-1,pc_new(nid.copy(),(intermediate,)),date_new,ini,intermediate,tuple(pt))
-#...    .............................................................................
+#................................................................................
 nodeindex = nodes.copy()
 #deleted here since it isn't needed (switched to pandas)
 for inputslice in order_data.values.tolist():
     for n in range(1,3):
         route(n,pc_new(nodeindex,(inputslice[1],inputslice[2])),inputslice[7],inputslice[1],inputslice[2],())
+    d[(inputslice[0],inputslice[3],inputslice[4],inputslice[5])] = tuple(t)#storing routes belonging to different orders with dictionary
+    t.clear()
 #deleted this part for new method
