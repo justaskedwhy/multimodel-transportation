@@ -112,36 +112,49 @@ def route(n,nid,date,ini,fin,finaldat=()):#finaldat is in tuple because of the p
                         week_new = date_new.strftime('%Y-%V')
                         pt.append((source,destination,carrier,container_size,MWpE,VWcF,total_time,date_new,week_new))
                         route(n-1,pc_new(nid.copy(),(intermediate,)),date_new,ini,intermediate,tuple(pt))
-def consoildation(orderno,route,routedictionary,consolidant = ()):
-    if len(route) == 0:
-        t_consolidate.append(consolidant)
+def consoildation(orderno,route,routedictionary,consolidant):
+    fol = True#to ensure no duplicate consolidation
+    if len(route) == 0:#END
+        consolidant_tuple = tuple(consolidant.itertuples(index=False,name=None))
+        t_consolidate.append(consolidant_tuple)
         return 
     routeslice = route[0]
-    to_consolidate_df = pd.DataFrame([routeslice],columns=['Source','Destination','Carrier','Container_Size','MWpE','VWcF','Total_Time','Date','Week'])
-    for  orderindex in routedictionary:
+    #if statements for routes which have already consoliate and eleminate orderindex one by one after used
+    to_consolidate_df = pd.DataFrame(route,columns=['Source','Destination','Carrier','Container_Size','MWpE','VWcF','Total_Time','Date','Week'])#dataframes are easy to work with
+    for orderindex in routedictionary:
         if orderindex[0] == orderno:
             continue
         routetuple = routedictionary[orderindex]
+        routedictionary_new = routedictionary.copy()
+        routedictionary_new.pop(orderindex)#to remove already used order
         for root in routetuple:
             from_df = pd.DataFrame(root,columns=['Source','Destination','Carrier','Container_Size','MWpE','VWcF','Total_Time','Date','Week'])
-            if not ((from_df['Source'] == to_consolidate_df['Source'].item()) & (from_df['Destination'] == to_consolidate_df['Destination'].item()) & (from_df['Week'] == to_consolidate_df['Week'].item())).any():
-                continue
-            routeslice_list = list(routeslice)
-            routeslice_list.append((orderindex,routetuple.index(root)))
-            pt = list(consolidant)
-            pt.append(tuple(routeslice_list))
-            consoildation(orderno,route[1:],routedictionary,tuple(pt))
+            equaldf = to_consolidate_df.merge(from_df,on=['Source','Destination','Carrier','Week'],suffixes=('', '_DROP')).filter(regex='^(?!.*_DROP)')#finds commen rows to both dataframe
+            route_new_df_1 = pd.concat([to_consolidate_df,equaldf],ignore_index=True).drop_duplicates(subset=['Source','Destination','Carrier','Week'],keep= False)#https://pandas.pydata.org/docs/reference/api/pandas.concat.html, https://www.digitalocean.com/community/tutorials/pandas-drop-duplicate-rows-drop_duplicates-function
+            route_new_df_2 = route_new_df_1.drop(route_new_df_1.index[(route_new_df_1['Source'] == routeslice[0]) & (route_new_df_1['Destination'] == routeslice[1]) & (route_new_df_1['Week'] == routeslice[8])])#drops row which is in use
+            route_new_ = tuple(route_new_df_2.itertuples(index=False,name=None))
+            pt = consolidant.copy()
+            for i in range(len(equaldf)):
+                fol = False
+                equalrow = equaldf.loc[i]
+                index = pt.index[(consolidant['Source'] == equalrow['Source']) & (consolidant['Destination'] == equalrow['Destination']) & (consolidant['Carrier'] == equalrow['Carrier']) & (consolidant['Week'] == equalrow['Week'])]
+                pt.loc[index,'Consolidant'] = str((orderindex,routetuple.index(root)))#adds the route index to the column consolidation 
+                consoildation(orderno,route_new_,routedictionary_new,pt.copy())
+    if fol:
+        consoildation(orderno,route[1:],routedictionary,consolidant)
 def consolidate_Routes(routes):
     for orderindex in routes:
         for route in routes[orderindex]:
-            consoildation(orderindex[0],route,routes)
+            df = pd.DataFrame(route,columns=['Source','Destination','Carrier','Container_Size','MWpE','VWcF','Total_Time','Date','Week'])
+            df['Consolidant'] = ''
+            consoildation(orderindex[0],route,routes,df)
         d_consoildate[orderindex] = tuple(t_consolidate)
         t_consolidate.clear()
 #................................................................................
 nodeindex = nodes.copy()
 #deleted here since it isn't needed (switched to pandas)
 for inputslice in order_data.values.tolist():
-    for n in range(4):
+    for n in range(3):
         route(n,pc_new(nodeindex,(inputslice[1],inputslice[2])),inputslice[7],inputslice[1],inputslice[2],())
     d_route[(inputslice[0],inputslice[3],inputslice[4],inputslice[5],inputslice[6])] = tuple(t)#storing routes belonging to different orders with dictionary
     t.clear()
