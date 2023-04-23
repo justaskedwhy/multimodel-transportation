@@ -130,23 +130,33 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
     one_sort = one_stop_df.sort_values('Date')
     start_dict = one_sort.loc[0].to_dict()
     start = start_dict['Date']
+    up_volumn_ut = np.ceil(start_dict['Volume_Utilization']) 
+    up_weight_ut = np.ceil(start_dict['Weight_Utilitation']) 
     last = None
+    last_orderindex = ''
     last_dict = start_dict.copy()
+    slice1 = 1
     for slice in range(1,one_sort.shape[0]):
         if one_sort.loc[slice,'Date'] >= start + datetime.timedelta(days=pullahead):#checks if the next routes is more that pullahead days from the present route 
             break
         last = one_sort.loc[slice,'Date']
+        last_orderindex = one_sort.loc[slice,'Order']
         start_dict['Weight_Utilitation'] += one_sort.loc[slice,'Weight_Utilitation']#adds the demands
         start_dict['Volume_Utilization'] += one_sort.loc[slice,'Volume_Utilization']
+        slice1 = slice
     if start_dict == last_dict:
+        start_dict['MRP-3'] = True
+        t_consolidate_0.append((tuple(start_dict.values())[0],(tuple(start_dict.values())[1:],)))
+        consolidation_0(zero_routes[slice1:])
         return
     last_dict['Date'] = last
-    if (start_dict['Volume_Utilization'] < 1.0 and start_dict['Weight_Utilitation'] < 1.0) or (not np.modf(start_dict['Volume_Utilization'])[0] or (not np.modf(start_dict['Weight_Utilitation'])[0])):
+    last_dict['Order'] = last_orderindex
+    if (start_dict['Volume_Utilization'] < up_volumn_ut and start_dict['Weight_Utilitation'] < up_weight_ut):
         start_dict['MRP-3'] = True#conformation
         t_consolidate_0.append((tuple(start_dict.values())[0],(tuple(start_dict.values())[1:],)))
         return
     if start_dict['Weight_Utilitation'] >= start_dict['Volume_Utilization']:
-        new_weight_Ut = np.floor(start_dict['Weight_Utilitation'])
+        new_weight_Ut = up_weight_ut
         ratio = np.divide(new_weight_Ut,start_dict['Weight_Utilitation'])
         new_volumn_Ut = np.multiply(start_dict['Volume_Utilization'],ratio)
         last_weight_Ut = start_dict['Weight_Utilitation'] - new_weight_Ut
@@ -156,8 +166,8 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
         last_dict['Weight_Utilitation'] = last_weight_Ut
         last_dict['Volume_Utilization'] = last_volumn_Ut
     elif start_dict['Volume_Utilization'] > start_dict['Weight_Utilitation']:
-        new_volumn_Ut = np.floor(start_dict['Volume_Utilization'])
-        ratio = np.divide(new_weight_Ut,start_dict['Volume_Utilization'])
+        new_volumn_Ut = up_volumn_ut
+        ratio = np.divide(new_volumn_Ut,start_dict['Volume_Utilization'])
         new_weight_Ut = np.multiply(start_dict['Weight_Utilitation'],ratio)
         last_weight_Ut = start_dict['Weight_Utilitation'] - new_weight_Ut
         last_volumn_Ut = start_dict['Volume_Utilization'] - new_volumn_Ut
@@ -166,9 +176,8 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
         last_dict['Weight_Utilitation'] = last_weight_Ut
         last_dict['Volume_Utilization'] = last_volumn_Ut
     start_dict['MRP-3'] = True
-    last_dict['MRP-3'] = True
     t_consolidate_0.append((tuple(start_dict.values())[0],(tuple(start_dict.values())[1:],)))#('orderindex',((route)))
-    t_consolidate_0.append((tuple(last_dict.values())[0],(tuple(last_dict.values())[1:],)))
+    consolidation_0((tuple(last_dict.values()),) + zero_routes[slice1+1:])
 def consoildation(orderno,route,routedictionary,consolidant):
     fol = False
     pt = consolidant.copy()
