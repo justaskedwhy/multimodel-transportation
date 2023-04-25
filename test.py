@@ -121,7 +121,7 @@ def route(n,nid,date,ini,fin,volume,weight,order_value,finaldat=()):#finaldat is
                             week_new = date_new.strftime('%Y-%V')
                             pt.append((source,destination,travelelement,carrierelement,container_size,MaxWeightPerEquipment,VolumetricWeightConversionFactor,Weight_Utilitation,Volume_Utilization,order_value,total_time,date_new,week_new))
                             route(n-1,pc_new(nid.copy(),(intermediate,)),date_new,ini,intermediate,volume,weight,order_value,tuple(pt))#recurse
-def consolidation_0(zero_routes):#for only the routes having zero intermidiates, done in mrp-3 method
+def consolidation_0(zero_routes):#for only the routes having zero intermidiates, done in DemandPullAhead method
     if len(zero_routes) == 0:
         return#avoids error
     pullahead = int(input('no.of days:'))#user should define it in the excel but for now it's been added to the function itself(should be changed)
@@ -144,14 +144,14 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
         start_dict['Volume_Utilization'] += one_sort.loc[slice,'Volume_Utilization']
         slice1 = slice
     if start_dict == last_dict:
-        start_dict['MRP-3'] = True
+        start_dict['DemandPullAhead'] = True
         t_consolidate_0.append((tuple(start_dict.values())[0],(tuple(start_dict.values())[1:],)))
         consolidation_0(zero_routes[slice1:])
         return
     last_dict['Date'] = last
     last_dict['Order'] = last_orderindex
     if (start_dict['Volume_Utilization'] < up_volumn_ut and start_dict['Weight_Utilitation'] < up_weight_ut):
-        start_dict['MRP-3'] = True#conformation
+        start_dict['DemandPullAhead'] = True#conformation
         t_consolidate_0.append((tuple(start_dict.values())[0],(tuple(start_dict.values())[1:],)))
         return
     if start_dict['Weight_Utilitation'] >= start_dict['Volume_Utilization']:
@@ -174,7 +174,7 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
         start_dict['Weight_Utilitation'] = new_weight_Ut
         last_dict['Weight_Utilitation'] = last_weight_Ut
         last_dict['Volume_Utilization'] = last_volumn_Ut
-    start_dict['MRP-3'] = True
+    start_dict['DemandPullAhead'] = True
     t_consolidate_0.append((tuple(start_dict.values())[0],(tuple(start_dict.values())[1:],)))#('orderindex',((route)))
     consolidation_0((tuple(last_dict.values()),) + zero_routes[slice1+1:])
 def consoildation(orderno,route,routedictionary,consolidant):
@@ -199,7 +199,7 @@ def consoildation(orderno,route,routedictionary,consolidant):
     consolidant_tuple = tuple(pt.itertuples(index=False,name=None))
     t_consolidate.append(consolidant_tuple)
 def consolidate_Routes(routes):
-    one_stop = {}#specificly for the mrp-3 method
+    one_stop = {}#specificly for the DemandPullAhead method
     x = 0
     for orderindex in routes:
         for route in routes[orderindex]:
@@ -210,8 +210,8 @@ def consolidate_Routes(routes):
                 one_stop[orderindex[0]] += [('{}'.format(orderindex),) + (route[0])]#('orderindex',....,...,..)
             df = pd.DataFrame(route,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
             df['Consolidant'] = ''
-            df['MRP-3'] = False#conformation
-            #used in checking whether done through MRP-3 method
+            df['DemandPullAhead'] = False#conformation
+            #used in checking whether done through DemandPullAhead method
             consoildation(orderindex[0],route,routes,df)
         d_consoildate[orderindex] = tuple(t_consolidate)
         t_consolidate.clear()
