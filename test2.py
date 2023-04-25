@@ -16,17 +16,19 @@ t_consolidate_0 = []
 d_route = {}
 d_consoildate = {}
 def calvalue(cost,volume,weight,order_value):
-    dict = {}
-    dict['FixedFreightCost'] = cost['FixedFreightCost']*np.max((np.ceil(volume/cost['MaxVolumePerEquipment']),np.ceil(weight/cost['MaxWeightPerEquipment'])))
-    dict['VariableFreightCost'] = cost['VariableFreightCost']*np.max((np.ceil(volume*cost['VolumetricWeightConversionFactor']),np.ceil(weight)))
-    dict['Port/Airport/RailHandlingCost'] = cost['Port/Airport/RailHandlingCost']*np.max((np.ceil(volume/cost['MaxVolumePerEquipment']),np.ceil(weight/cost['MaxWeightPerEquipment'])))
-    dict['Bunker/FuelCost'] = cost['Bunker/FuelCost']
-    dict['DocumentationCost'] = cost['DocumentationCost']*np.max((np.ceil(volume/cost['MaxVolumePerEquipment']),np.ceil(weight/cost['MaxWeightPerEquipment'])))
-    dict['EquipmentCost'] = cost['EquipmentCost']*np.max((np.ceil(volume/cost['MaxVolumePerEquipment']),np.ceil(weight/cost['MaxWeightPerEquipment'])))
-    dict['ExtraCost'] = cost['ExtraCost']*np.max((np.ceil(volume/cost['MaxVolumePerEquipment']),np.ceil(weight/cost['MaxWeightPerEquipment'])))
-    dict['WarehouseCost'] = cost['WarehouseCost']*volume
-    dict['TransitDuty'] = cost['TransitDuty']*order_value
-    return dict
+    #add methods to it with different methods segrigated into different sections
+    pass
+    # dict = {}
+    # dict['FixedFreightCost'] = cost['FixedFreightCost']*np.max((np.ceil(volume/cost['MaxVolumePerEquipment']),np.ceil(weight/cost['MaxWeightPerEquipment'])))
+    # dict['VariableFreightCost'] = cost['VariableFreightCost']*np.max((np.ceil(volume*cost['VolumetricWeightConversionFactor']),np.ceil(weight)))
+    # dict['Port/Airport/RailHandlingCost'] = cost['Port/Airport/RailHandlingCost']*np.max((np.ceil(volume/cost['MaxVolumePerEquipment']),np.ceil(weight/cost['MaxWeightPerEquipment'])))
+    # dict['Bunker/FuelCost'] = cost['Bunker/FuelCost']
+    # dict['DocumentationCost'] = cost['DocumentationCost']*np.max((np.ceil(volume/cost['MaxVolumePerEquipment']),np.ceil(weight/cost['MaxWeightPerEquipment'])))
+    # dict['EquipmentCost'] = cost['EquipmentCost']*np.max((np.ceil(volume/cost['MaxVolumePerEquipment']),np.ceil(weight/cost['MaxWeightPerEquipment'])))
+    # dict['ExtraCost'] = cost['ExtraCost']*np.max((np.ceil(volume/cost['MaxVolumePerEquipment']),np.ceil(weight/cost['MaxWeightPerEquipment'])))
+    # dict['WarehouseCost'] = cost['WarehouseCost']*volume
+    # dict['TransitDuty'] = cost['TransitDuty']*order_value
+    # return dict
 def variablefinder(travelmode,carrier,initial,final):
     variable = {}
     if not ((data['Travel Mode'] == travelmode) & (data['Carrier'] == carrier) & (data['Source']  == initial)  & (data['Destination'] == final)).any():#checks whether a row exist in the dataframe
@@ -221,6 +223,35 @@ def consolidate_Routes(routes):
         for i in t_consolidate_0:
             d_consoildate[eval(i[0])] += (i[1],)
         t_consolidate_0.clear()
+def cost(route_dict_con,route_dict):
+    #add if api cloumn is true in future and do the pullahead into the excel itself as a column (must)
+    for orderindex in route_dict_con:
+        for routes in route_dict_con[orderindex]:
+            for routeslice in routes:
+                routeslice_pd = pd.DataFrame(routeslice,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week','Consolids','DemandPullAhead'])
+                consolids = eval(routeslice_pd['consolids'].item())
+                consolids_volumn_ut,consolids_weight_ut = 0
+                for cosolidable in consolids:
+                    consolid_pd = pd.DataFrame(route_dict[cosolidable[0]][cosolidable[1]],columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
+                    index = consolid_pd.index[(consolid_pd['Source'] == routeslice_pd['Source']) & (consolid_pd['Destination'] == routeslice_pd['Destination']) & (consolid_pd['Travel_Mode'] == routeslice_pd['Travel_Mode']) & (consolid_pd['Carrier'] == routeslice_pd['Carrier']) & (consolid_pd['Week'] == routeslice_pd['Week'])]
+                    consolidslice = consolid_pd.loc[index]
+                    consolids_volumn_ut += consolidslice['Volume_Utilization'].item()
+                    consolids_weight_ut += consolidslice['Weight_Utilitation'].item()
+                voulmn_ut = routeslice_pd['Volume_Utilization'].item() + consolids_volumn_ut
+                weight_ut = routeslice_pd['Weight_Utilitation'].item() + consolids_weight_ut
+                total_volumn_ut = np.ceil(voulmn_ut)
+                total_weight_ut = np.ceil(weight_ut)
+                total_con = np.max(total_volumn_ut,total_weight_ut)
+                if total_con == total_weight_ut:
+                    ratio = np.divide(routeslice_pd['Weight_Utilitation'].item(),total_con)
+                    route_index = data.index[(data['Source'] == routeslice['Source']) & (data['Destination'] == routeslice['Destination'] & data['Travel Mode'] == routeslice['Travel_Mode']) & (data['Carrier'] == routeslice['Carrier'])]
+                    route_dict = data.loc[route_index].to_dict('records')
+                    #cost(ordervalue,ratio,total_con,volumn_ut,weight_ut,mwpe,vwcf,route_dict)
+                else:
+                    ratio = np.divide(routeslice_pd['Volume_Utilization'].item(),total_con)
+                    route_index = data.index[(data['Source'] == routeslice['Source']) & (data['Destination'] == routeslice['Destination'] & data['Travel Mode'] == routeslice['Travel_Mode']) & (data['Carrier'] == routeslice['Carrier'])]
+                    route_dict = data.loc[route_index].to_dict('records')
+                    #cost(ordervalue,ratio,total_con,volumn_ut,weight_ut,mwpe,vwcf,route_dict)
 #................................................................................
 nodeindex = nodes.copy()
 #deleted here since it isn't needed (switched to pandas)
