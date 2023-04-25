@@ -206,9 +206,9 @@ def consolidate_Routes(routes):
         for route in routes[orderindex]:
             if len(route) == 1:
                 if x != orderindex[0]:
-                    one_stop[orderindex[0]] = []
+                    one_stop[orderindex[0],route[0][2],route[0][3]] = []
                     x = orderindex[0]
-                one_stop[orderindex[0]] += [('{}'.format(orderindex),) + (route[0])]#('orderindex',....,...,..)
+                one_stop[(orderindex[0],route[0][2],route[0][3])] += [('{}'.format((orderindex)),) + (route[0])]#('orderindex',....,...,..)
             df = pd.DataFrame(route,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
             df['Consolidant'] = ''
             df['MRP-3'] = False
@@ -221,6 +221,8 @@ def consolidate_Routes(routes):
         for i in t_consolidate_0:
             d_consoildate[eval(i[0])] += (i[1],)
         t_consolidate_0.clear()
+def cost():
+    pass
 #................................................................................
 nodeindex = nodes.copy()
 #deleted here since it isn't needed (switched to pandas)
