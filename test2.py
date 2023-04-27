@@ -15,18 +15,23 @@ t_consolidate = []
 t_consolidate_0 = []
 d_route = {}
 d_consoildate = {}
-def calvalue(cost,volume,weight,order_value):
+d_cost = {}
+def calvalue(route_info,volume_ut,weight_ut,total_ut,ratio,order_value):
+    #add methods to it with different methods segrigated into different sections
     dict = {}
-    dict['FixedFreightCost'] = cost['FixedFreightCost']*np.max((np.ceil(volume/cost['MaxVolumePerEquipment']),np.ceil(weight/cost['MaxWeightPerEquipment'])))
-    dict['VariableFreightCost'] = cost['VariableFreightCost']*np.max((np.ceil(volume*cost['VolumetricWeightConversionFactor']),np.ceil(weight)))
-    dict['Port/Airport/RailHandlingCost'] = cost['Port/Airport/RailHandlingCost']*np.max((np.ceil(volume/cost['MaxVolumePerEquipment']),np.ceil(weight/cost['MaxWeightPerEquipment'])))
-    dict['Bunker/FuelCost'] = cost['Bunker/FuelCost']
-    dict['DocumentationCost'] = cost['DocumentationCost']*np.max((np.ceil(volume/cost['MaxVolumePerEquipment']),np.ceil(weight/cost['MaxWeightPerEquipment'])))
-    dict['EquipmentCost'] = cost['EquipmentCost']*np.max((np.ceil(volume/cost['MaxVolumePerEquipment']),np.ceil(weight/cost['MaxWeightPerEquipment'])))
-    dict['ExtraCost'] = cost['ExtraCost']*np.max((np.ceil(volume/cost['MaxVolumePerEquipment']),np.ceil(weight/cost['MaxWeightPerEquipment'])))
-    dict['WarehouseCost'] = cost['WarehouseCost']*volume
-    dict['TransitDuty'] = cost['TransitDuty']*order_value
-    return dict
+    #method 1
+    dict['FixedFreightCost'] = [(route_info['Fixed Freight Cost']*total_ut)*ratio]
+    dict['Port/Airport/RailHandlingCost'] = [(route_info['Port/Airport/Rail Handling Cost']*total_ut)*ratio]
+    dict['DocumentationCost'] = [(route_info['Documentation Cost']*total_ut)*ratio]
+    dict['EquipmentCost'] = [(route_info['Equipment Cost']*total_ut)*ratio]
+    dict['ExtraCost'] = [(route_info['Extra Cost']*total_ut)*ratio]
+    #method 2
+    dict['VariableFreightCost'] = [route_info['VariableFreightCost']*np.max((np.ceil((volume_ut*route_info['Container Size'])*route_info['VolumetricWeightConversionFactor']),np.ceil(weight_ut*route_info['MaxWeightPerEquipment'])))]
+    #method 3
+    dict['Bunker/FuelCost'] = [route_info['Bunker/ Fuel Cost']]
+    dict['WarehouseCost'] = [route_info['Warehouse Cost']*(volume_ut*route_info['Container Size'])]
+    dict['TransitDuty'] = [route_info['Transit Duty']*order_value]
+    return pd.DataFrame(dict)
 def variablefinder(travelmode,carrier,initial,final):
     variable = {}
     if not ((data['Travel Mode'] == travelmode) & (data['Carrier'] == carrier) & (data['Source']  == initial)  & (data['Destination'] == final)).any():#checks whether a row exist in the dataframe
@@ -122,13 +127,13 @@ def route(n,nid,date,ini,fin,volume,weight,order_value,finaldat=()):#finaldat is
                             week_new = date_new.strftime('%Y-%V')
                             pt.append((source,destination,travelelement,carrierelement,container_size,MaxWeightPerEquipment,VolumetricWeightConversionFactor,Weight_Utilitation,Volume_Utilization,order_value,total_time,date_new,week_new))
                             route(n-1,pc_new(nid.copy(),(intermediate,)),date_new,ini,intermediate,volume,weight,order_value,tuple(pt))
-def consolidation_0(zero_routes):#for only the routes having zero intermidiates, done in mrp-3 method
+def consolidation_0(zero_routes):#for only the routes having zero intermidiates, done in DemandPullAhead method
     if len(zero_routes) == 0:
         return#avoids error
-    pullahead = int(input('no.of days:'))#user should define it in the excel but for now it's been added to the function itself(should be changed)
     one_stop_df = pd.DataFrame(zero_routes,columns=['Order','Source','Destination','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
     one_sort = one_stop_df.sort_values('Date')
     start_dict = one_sort.loc[0].to_dict()
+    pullahead = eval(start_dict['Order'])[5]
     start = start_dict['Date']
     up_volumn_ut = np.ceil(start_dict['Volume_Utilization']) 
     up_weight_ut = np.ceil(start_dict['Weight_Utilitation']) 
@@ -145,14 +150,14 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
         start_dict['Volume_Utilization'] += one_sort.loc[slice,'Volume_Utilization']
         slice1 = slice
     if start_dict == last_dict:
-        start_dict['MRP-3'] = True
+        start_dict['DemandPullAhead'] = True
         t_consolidate_0.append((tuple(start_dict.values())[0],(tuple(start_dict.values())[1:],)))
         consolidation_0(zero_routes[slice1:])
         return
     last_dict['Date'] = last
     last_dict['Order'] = last_orderindex
     if (start_dict['Volume_Utilization'] < up_volumn_ut and start_dict['Weight_Utilitation'] < up_weight_ut):
-        start_dict['MRP-3'] = True#conformation
+        start_dict['DemandPullAhead'] = True#conformation
         t_consolidate_0.append((tuple(start_dict.values())[0],(tuple(start_dict.values())[1:],)))
         return
     if start_dict['Weight_Utilitation'] >= start_dict['Volume_Utilization']:
@@ -175,7 +180,7 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
         start_dict['Weight_Utilitation'] = new_weight_Ut
         last_dict['Weight_Utilitation'] = last_weight_Ut
         last_dict['Volume_Utilization'] = last_volumn_Ut
-    start_dict['MRP-3'] = True
+    start_dict['DemandPullAhead'] = True
     t_consolidate_0.append((tuple(start_dict.values())[0],(tuple(start_dict.values())[1:],)))#('orderindex',((route)))
     consolidation_0((tuple(last_dict.values()),) + zero_routes[slice1+1:])
 def consoildation(orderno,route,routedictionary,consolidant):
@@ -211,8 +216,8 @@ def consolidate_Routes(routes):
                 one_stop[(orderindex[0],route[0][2],route[0][3])] += [('{}'.format((orderindex)),) + (route[0])]#('orderindex',....,...,..)
             df = pd.DataFrame(route,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
             df['Consolidant'] = ''
-            df['MRP-3'] = False
-            #used in checking whether done through MRP-3 method
+            df['DemandPullAhead'] = False
+            #used in checking whether done through DemandPullAhead method
             consoildation(orderindex[0],route,routes,df)
         d_consoildate[orderindex] = tuple(t_consolidate)
         t_consolidate.clear()
@@ -221,8 +226,48 @@ def consolidate_Routes(routes):
         for i in t_consolidate_0:
             d_consoildate[eval(i[0])] += (i[1],)
         t_consolidate_0.clear()
-def cost():
-    pass
+def cost(route_dict_con,route_dict):
+    #add if api cloumn is true in future and do the pullahead into the excel itself as a column (must)
+    for orderindex in route_dict_con:
+        cost_tuple = []
+        for routes in route_dict_con[orderindex]:
+            costslice = ()
+            for routeslice in routes:
+                if routeslice[-1]:
+                    routeslice_pd = pd.DataFrame((routeslice,),columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week','DemandPullAhead'])
+                else:
+                    routeslice_pd = pd.DataFrame((routeslice,),columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week','Consolids','DemandPullAhead'])
+                try:
+                    consolids = eval(routeslice_pd['Consolids'].item())
+                except:
+                    consolids = ()
+                consolids_volumn_ut,consolids_weight_ut = 0,0
+                for consolid_i in range(len(consolids)):
+                    consolidable = consolids[consolid_i]
+                    consolid_pd = pd.DataFrame(route_dict[consolidable[0]][consolidable[1]],columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
+                    index = consolid_pd.index[(consolid_pd['Source'] == routeslice_pd['Source'].item()) & (consolid_pd['Destination'] == routeslice_pd['Destination'].item()) & (consolid_pd['Travel_Mode'] == routeslice_pd['Travel_Mode'].item()) & (consolid_pd['Carrier'] == routeslice_pd['Carrier'].item()) & (consolid_pd['Week'] == routeslice_pd['Week'].item())]
+                    consolidslice = consolid_pd.loc[index]
+                    consolids_volumn_ut += consolidslice['Volume_Utilization'].item()
+                    consolids_weight_ut += consolidslice['Weight_Utilitation'].item()
+                volumn_ut = routeslice_pd['Volume_Utilization'].item() + consolids_volumn_ut
+                weight_ut = routeslice_pd['Weight_Utilitation'].item() + consolids_weight_ut
+                total_volumn_ut = np.ceil(volumn_ut)
+                total_weight_ut = np.ceil(weight_ut)
+                total_ut = np.max((total_volumn_ut,total_weight_ut))
+                if total_ut == total_weight_ut:
+                    ratio = np.divide(routeslice_pd['Weight_Utilitation'].item(),total_weight_ut)
+                    route_index = data.index[((data['Source'] == routeslice_pd['Source'].item()) & (data['Destination'] == routeslice_pd['Destination'].item()) & (data['Travel Mode'] == routeslice_pd['Travel_Mode'].item()) & (data['Carrier'] == routeslice_pd['Carrier'].item()))]
+                    route_ = data.loc[route_index].to_dict('records')
+                    cost_pd = calvalue(route_[0],routeslice_pd['Volume_Utilization'].item(),routeslice_pd['Weight_Utilitation'].item(),total_ut,ratio,orderindex[1])
+                else:
+                    ratio = np.divide(routeslice_pd['Volume_Utilization'].item(),total_volumn_ut)
+                    route_index = data.index[((data['Source'] == routeslice_pd['Source'].item()) & (data['Destination'] == routeslice_pd['Destination'].item()) & (data['Travel Mode'] == routeslice_pd['Travel_Mode'].item()) & (data['Carrier'] == routeslice_pd['Carrier'].item()))]
+                    route_ = data.loc[route_index].to_dict('records')
+                    cost_pd = calvalue(route_[0],routeslice_pd['Volume_Utilization'].item(),routeslice_pd['Weight_Utilitation'].item(),total_ut,ratio,orderindex[1])
+                routenew_pd = routeslice_pd.merge(cost_pd,left_index=True,right_index=True)
+                costslice += tuple(routenew_pd.itertuples(index=False,name=None))
+            cost_tuple.append((costslice,))
+        d_cost[orderindex] = tuple(cost_tuple)
 #................................................................................
 nodeindex = nodes.copy()
 #deleted here since it isn't needed (switched to pandas)
@@ -233,7 +278,7 @@ for inputslice in order_data.values.tolist():
             week = inputslice[7].strftime('%Y-%V')
         except:
             week = None
-    d_route[(inputslice[0],inputslice[3],inputslice[4],inputslice[5],week)] = tuple(t)#storing routes belonging to different orders with dictionary
+    d_route[(inputslice[0],inputslice[3],inputslice[4],inputslice[5],week,inputslice[8])] = tuple(t)#storing routes belonging to different orders with dictionary
     t.clear()
 # for i in d_route:
 #     print(i)
@@ -242,9 +287,17 @@ for inputslice in order_data.values.tolist():
 #             print(k)
 #         print('\n')
 consolidate_Routes(d_route)
-for i in d_consoildate:
+# for i in d_consoildate:
+#     print(i)
+#     for j in d_consoildate[i]:
+#         for k in j:
+#             print(k)
+#         print('\n')
+#     print('\n')
+cost(d_consoildate,d_route)
+for i in d_cost:
     print(i)
-    for j in d_consoildate[i]:
+    for j in d_cost[i]:
         for k in j:
             print(k)
         print('\n')
