@@ -233,7 +233,10 @@ def cost(route_dict_con,route_dict):
         for routes in route_dict_con[orderindex]:
             costslice = ()
             for routeslice in routes:
-                routeslice_pd = pd.DataFrame((routeslice,),columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week','Consolids','DemandPullAhead'])
+                if routeslice[-1]:
+                    routeslice_pd = pd.DataFrame((routeslice,),columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week','DemandPullAhead'])
+                else:
+                    routeslice_pd = pd.DataFrame((routeslice,),columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week','Consolids','DemandPullAhead'])
                 try:
                     consolids = eval(routeslice_pd['Consolids'].item())
                 except:
@@ -241,7 +244,7 @@ def cost(route_dict_con,route_dict):
                 consolids_volumn_ut,consolids_weight_ut = 0,0
                 for consolid_i in range(len(consolids)):
                     consolidable = consolids[consolid_i]
-                    consolid_pd = pd.DataFrame(route_dict[0][consolidable[0]][consolidable[1]],columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
+                    consolid_pd = pd.DataFrame(route_dict[consolidable[0]][consolidable[1]],columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
                     index = consolid_pd.index[(consolid_pd['Source'] == routeslice_pd['Source'].item()) & (consolid_pd['Destination'] == routeslice_pd['Destination'].item()) & (consolid_pd['Travel_Mode'] == routeslice_pd['Travel_Mode'].item()) & (consolid_pd['Carrier'] == routeslice_pd['Carrier'].item()) & (consolid_pd['Week'] == routeslice_pd['Week'].item())]
                     consolidslice = consolid_pd.loc[index]
                     consolids_volumn_ut += consolidslice['Volume_Utilization'].item()
@@ -254,15 +257,15 @@ def cost(route_dict_con,route_dict):
                 if total_ut == total_weight_ut:
                     ratio = np.divide(routeslice_pd['Weight_Utilitation'].item(),total_weight_ut)
                     route_index = data.index[((data['Source'] == routeslice_pd['Source'].item()) & (data['Destination'] == routeslice_pd['Destination'].item()) & (data['Travel Mode'] == routeslice_pd['Travel_Mode'].item()) & (data['Carrier'] == routeslice_pd['Carrier'].item()))]
-                    route_dict = data.loc[route_index].to_dict('records')
-                    cost_pd = calvalue(route_dict[0],routeslice_pd['Volume_Utilization'].item(),routeslice_pd['Weight_Utilitation'].item(),total_ut,ratio,orderindex[1])
+                    route_ = data.loc[route_index].to_dict('records')
+                    cost_pd = calvalue(route_[0],routeslice_pd['Volume_Utilization'].item(),routeslice_pd['Weight_Utilitation'].item(),total_ut,ratio,orderindex[1])
                 else:
                     ratio = np.divide(routeslice_pd['Volume_Utilization'].item(),total_volumn_ut)
                     route_index = data.index[((data['Source'] == routeslice_pd['Source'].item()) & (data['Destination'] == routeslice_pd['Destination'].item()) & (data['Travel Mode'] == routeslice_pd['Travel_Mode'].item()) & (data['Carrier'] == routeslice_pd['Carrier'].item()))]
-                    route_dict = data.loc[route_index].to_dict('records')
-                    cost_pd = calvalue(route_dict[0],routeslice_pd['Volume_Utilization'].item(),routeslice_pd['Weight_Utilitation'].item(),total_ut,ratio,orderindex[1])
-                routeslice_pd.merge(cost_pd,left_index=True,right_index=True)
-                costslice += tuple(routeslice_pd.itertuples(index=False,name=None))
+                    route_ = data.loc[route_index].to_dict('records')
+                    cost_pd = calvalue(route_[0],routeslice_pd['Volume_Utilization'].item(),routeslice_pd['Weight_Utilitation'].item(),total_ut,ratio,orderindex[1])
+                routenew_pd = routeslice_pd.merge(cost_pd,left_index=True,right_index=True)
+                costslice += tuple(routenew_pd.itertuples(index=False,name=None))
             cost_tuple.append((costslice,))
         d_cost[orderindex] = tuple(cost_tuple)
 #................................................................................
