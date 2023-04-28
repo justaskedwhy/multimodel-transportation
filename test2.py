@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 Tk().withdraw() 
 inputxl = askopenfilename(title='input')  
+outputxl  = askopenfilename(title = 'output')
 data = pd.read_excel(inputxl,sheet_name='Route Information')
 order_data = pd.read_excel(inputxl,sheet_name='Order Information')
 nodes = pd.unique(data[['Source','Destination']].values.ravel('k')).tolist()
@@ -266,8 +267,65 @@ def cost(route_dict_con,route_dict):
                     cost_pd = calvalue(route_[0],routeslice_pd['Volume_Utilization'].item(),routeslice_pd['Weight_Utilitation'].item(),total_ut,ratio,orderindex[1])
                 routenew_pd = routeslice_pd.merge(cost_pd,left_index=True,right_index=True)
                 costslice += tuple(routenew_pd.itertuples(index=False,name=None))
-            cost_tuple.append((costslice,))
+            cost_tuple.append(costslice)
         d_cost[orderindex] = tuple(cost_tuple)
+def display(dictionary):
+    datafinal = pd.DataFrame(columns=['Orderno','Source','Destination','Legs','Travel_Modes','Carriers','Time','Fixed Freight Cost','Port/Airport/Rail Handling Cost','Documentation Cost','Equipment Cost','Extra Cost','VariableFreightCost','Bunker/ Fuel Cost','Warehouse Cost','Transit Duty','OrderDate','DemandPullAhead'])
+    for orderindex in dictionary:
+        for routes in dictionary[orderindex]:
+            finaldat = {}
+            finaldat['Orderno'] = orderindex[0]
+            finaldat['Source'] = routes[0][0]
+            finaldat['Destination'] = routes[-1][1]
+            finaldat['Intermidiates'] = ''
+            finaldat['Legs'] = len(routes) - 1
+            finaldat['Travel_Modes'] = routes[0][2]
+            finaldat['Carriers'] = routes[0][3]
+            finaldat['Time'] = routes[0][10]
+            finaldat['OrderDate'] = routes[0][11]
+            finaldat['DemandPullAhead'] = routes[0][13]
+            finaldat['Fixed Freight Cost'] = 0
+            finaldat['Port/Airport/Rail Handling Cost'] = 0
+            finaldat['Documentation Cost'] = 0
+            finaldat['Equipment Cost'] = 0
+            finaldat['Extra Cost'] = 0
+            finaldat['VariableFreightCost'] = 0
+            finaldat['Bunker/ Fuel Cost'] = 0
+            finaldat['Warehouse Cost'] = 0
+            finaldat['Transit Duty'] = 0
+            if type(finaldat['DemandPullAhead']) == str:
+                finaldat['DemandPullAhead'] = routes[0][14]  
+                for routeslice_i in range(1,len(routes)):
+                    finaldat['Intermidiates'] += '--->' + routes[routeslice_i][0]
+                    finaldat['Travel_Modes'] += ',' + routes[routeslice_i][2]
+                    finaldat['Carriers'] += ',' + routes[routeslice_i][3]
+                    finaldat['Time'] += routes[routeslice_i][10]
+                    finaldat['Fixed Freight Cost'] += routes[routeslice_i][15]
+                    finaldat['Port/Airport/Rail Handling Cost'] += routes[routeslice_i][16]
+                    finaldat['Documentation Cost'] += routes[routeslice_i][17]
+                    finaldat['Equipment Cost'] += routes[routeslice_i][18]
+                    finaldat['Extra Cost'] += routes[routeslice_i][19]
+                    finaldat['VariableFreightCost'] += routes[routeslice_i][20]
+                    finaldat['Bunker/ Fuel Cost'] += routes[routeslice_i][21]
+                    finaldat['Warehouse Cost'] += routes[routeslice_i][22]
+                    finaldat['Transit Duty'] += routes[routeslice_i][23]
+            else:
+                for routeslice_i in range(1,len(routes)):
+                    finaldat['Intermidiates'] += '--->' + routes[routeslice_i][0]
+                    finaldat['Travel_Modes'] += ',' + routes[routeslice_i][2]
+                    finaldat['Carriers'] += ',' + routes[routeslice_i][3]
+                    finaldat['Time'] = finaldat['Time'] + routes[routeslice_i][10]
+                    finaldat['Fixed Freight Cost'] += routes[routeslice_i][14]
+                    finaldat['Port/Airport/Rail Handling Cost'] += routes[routeslice_i][15]
+                    finaldat['Documentation Cost'] += routes[routeslice_i][16]
+                    finaldat['Equipment Cost'] += routes[routeslice_i][17]
+                    finaldat['Extra Cost'] += routes[routeslice_i][18]
+                    finaldat['VariableFreightCost'] += routes[routeslice_i][19]
+                    finaldat['Bunker/ Fuel Cost'] += routes[routeslice_i][20]
+                    finaldat['Warehouse Cost'] += routes[routeslice_i][21]
+                    finaldat['Transit Duty'] += routes[routeslice_i][22]
+            datafinal.loc[len(datafinal.index)] = finaldat
+    datafinal.to_excel(outputxl,sheet_name='Output')
 #................................................................................
 nodeindex = nodes.copy()
 #deleted here since it isn't needed (switched to pandas)
@@ -280,26 +338,6 @@ for inputslice in order_data.values.tolist():
             week = None
     d_route[(inputslice[0],inputslice[3],inputslice[4],inputslice[5],week,inputslice[8])] = tuple(t)#storing routes belonging to different orders with dictionary
     t.clear()
-# for i in d_route:
-#     print(i)
-#     for j in d_route[i]:
-#         for k in j:
-#             print(k)
-#         print('\n')
 consolidate_Routes(d_route)
-# for i in d_consoildate:
-#     print(i)
-#     for j in d_consoildate[i]:
-#         for k in j:
-#             print(k)
-#         print('\n')
-#     print('\n')
 cost(d_consoildate,d_route)
-for i in d_cost:
-    print(i)
-    for j in d_cost[i]:
-        for k in j:
-            print(k)
-        print('\n')
-    print('\n')
-#deleted this part for new method
+display(d_cost)
