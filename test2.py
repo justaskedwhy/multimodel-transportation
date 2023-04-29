@@ -1,11 +1,13 @@
 from tkinter import Tk  #changed to accept excel sheets
 from tkinter.filedialog import askopenfilename
+from openpyxl import load_workbook
 import datetime
 import pandas as pd
 import numpy as np
 Tk().withdraw() 
 inputxl = askopenfilename(title='input')  
 outputxl  = askopenfilename(title = 'output')
+book = load_workbook(r'{}'.format(outputxl))
 data = pd.read_excel(inputxl,sheet_name='Route Information')
 order_data = pd.read_excel(inputxl,sheet_name='Order Information')
 nodes = pd.unique(data[['Source','Destination']].values.ravel('k')).tolist()
@@ -207,13 +209,13 @@ def consoildation(orderno,route,routedictionary,consolidant):
     t_consolidate.append(consolidant_tuple)
 def consolidate_Routes(routes):
     one_stop = {}
-    x = 0
+    x = ()
     for orderindex in routes:
         for route in routes[orderindex]:
             if len(route) == 1:
-                if x != orderindex[0]:
+                if x != (orderindex[0],route[0][2],route[0][3]):
                     one_stop[orderindex[0],route[0][2],route[0][3]] = []
-                    x = orderindex[0]
+                    x = orderindex[0],route[0][2],route[0][3]
                 one_stop[(orderindex[0],route[0][2],route[0][3])] += [('{}'.format((orderindex)),) + (route[0])]#('orderindex',....,...,..)
             df = pd.DataFrame(route,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
             df['Consolidant'] = ''
@@ -256,12 +258,12 @@ def cost(route_dict_con,route_dict):
                 total_weight_ut = np.ceil(weight_ut)
                 total_ut = np.max((total_volumn_ut,total_weight_ut))
                 if total_ut == total_weight_ut:
-                    ratio = np.divide(routeslice_pd['Weight_Utilitation'].item(),total_weight_ut)
+                    ratio = np.divide(routeslice_pd['Weight_Utilitation'].item(),weight_ut)
                     route_index = data.index[((data['Source'] == routeslice_pd['Source'].item()) & (data['Destination'] == routeslice_pd['Destination'].item()) & (data['Travel Mode'] == routeslice_pd['Travel_Mode'].item()) & (data['Carrier'] == routeslice_pd['Carrier'].item()))]
                     route_ = data.loc[route_index].to_dict('records')
                     cost_pd = calvalue(route_[0],routeslice_pd['Volume_Utilization'].item(),routeslice_pd['Weight_Utilitation'].item(),total_ut,ratio,orderindex[1])
                 else:
-                    ratio = np.divide(routeslice_pd['Volume_Utilization'].item(),total_volumn_ut)
+                    ratio = np.divide(routeslice_pd['Volume_Utilization'].item(),volumn_ut)
                     route_index = data.index[((data['Source'] == routeslice_pd['Source'].item()) & (data['Destination'] == routeslice_pd['Destination'].item()) & (data['Travel Mode'] == routeslice_pd['Travel_Mode'].item()) & (data['Carrier'] == routeslice_pd['Carrier'].item()))]
                     route_ = data.loc[route_index].to_dict('records')
                     cost_pd = calvalue(route_[0],routeslice_pd['Volume_Utilization'].item(),routeslice_pd['Weight_Utilitation'].item(),total_ut,ratio,orderindex[1])
@@ -269,8 +271,11 @@ def cost(route_dict_con,route_dict):
                 costslice += tuple(routenew_pd.itertuples(index=False,name=None))
             cost_tuple.append(costslice)
         d_cost[orderindex] = tuple(cost_tuple)
-def display(dictionary):
+def display(dictionary,routedict = {}):
+    writer = pd.ExcelWriter(outputxl,engine='openpyxl')
+    writer.book = book
     datafinal = pd.DataFrame(columns=['Orderno','Source','Destination','Legs','Travel_Modes','Carriers','Time','Fixed Freight Cost','Port/Airport/Rail Handling Cost','Documentation Cost','Equipment Cost','Extra Cost','VariableFreightCost','Bunker/ Fuel Cost','Warehouse Cost','Transit Duty','OrderDate','DemandPullAhead'])
+    datafinal_route = pd.DataFrame(columns=['Orderno','Source','Destination','Legs','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
     for orderindex in dictionary:
         for routes in dictionary[orderindex]:
             finaldat = {}
@@ -325,7 +330,37 @@ def display(dictionary):
                     finaldat['Warehouse Cost'] += routes[routeslice_i][21]
                     finaldat['Transit Duty'] += routes[routeslice_i][22]
             datafinal.loc[len(datafinal.index)] = finaldat
-    datafinal.to_excel(outputxl,sheet_name='Output')
+    for orderindex_ in routedict:
+        for route_ in routedict[orderindex_]:
+            finaldat_ = {}
+            finaldat_['Order'] = orderindex_[0]
+            finaldat_['Source'] = route_[0][0]
+            finaldat_['Destination'] = route_[-1][1]
+            finaldat_['Intermidiates'] = ''
+            finaldat_['Legs'] = len(route_) - 1
+            finaldat_['Travel_Mode'] = route_[0][2]
+            finaldat_['Carrier'] = route_[0][3]
+            finaldat_['Container_Size'] = '{}'.format(route_[0][4])
+            finaldat_['MaxWeightPerEquipment'] = '{}'.format(route_[0][5])
+            finaldat_['VolumetricWeightConversionFactor'] = '{}'.format(route_[0][6])
+            finaldat_['Weight_Utilitation'] = '{}'.format(route_[0][7])
+            finaldat_['Volume_Utilization'] = '{}'.format(route_[0][8])
+            finaldat_['order_value'] = route_[0][9]
+            finaldat_['Total_Time'] = route_[0][10]
+            finaldat_['OrderDate'] = route_[0][11]
+            for routeslice_I in range(1,len(route_)):
+                finaldat_['Intermidiates'] += '--->' + route_[routeslice_I][1]
+                finaldat_['Travel_Mode'] += ',' + route_[routeslice_I][2]
+                finaldat_['Carrier'] += ',' + route_[routeslice_I][3]
+                finaldat_['Container_Size'] += ',' +'{}'.format(route_[routeslice_I][4])
+                finaldat_['MaxWeightPerEquipment'] += ',' +'{}'.format(route_[routeslice_I][5])
+                finaldat_['VolumetricWeightConversionFactor'] += ',' +'{}'.format(route_[routeslice_I][6])
+                finaldat_['Weight_Utilitation'] += ',' +'{}'.format(route_[routeslice_I][7])
+                finaldat_['Volume_Utilization'] += ',' +'{}'.format(route_[routeslice_I][8])
+            datafinal_route.loc[len(datafinal_route.index)] = finaldat_
+    datafinal_route.to_excel(writer,sheet_name='route')
+    datafinal.to_excel(writer,sheet_name='cost')
+    writer.close()
 #................................................................................
 nodeindex = nodes.copy()
 #deleted here since it isn't needed (switched to pandas)
@@ -338,6 +373,12 @@ for inputslice in order_data.values.tolist():
             week = None
     d_route[(inputslice[0],inputslice[3],inputslice[4],inputslice[5],week,inputslice[8])] = tuple(t)#storing routes belonging to different orders with dictionary
     t.clear()
+# for i in d_route:
+#     print(i)
+#     for j in d_route[i]:
+#         for k in j:
+#             print(k)
+#         print('\n')
 consolidate_Routes(d_route)
 cost(d_consoildate,d_route)
-display(d_cost)
+display(d_cost,d_route)
