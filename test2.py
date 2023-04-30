@@ -274,15 +274,15 @@ def cost(route_dict_con,route_dict):
 def display(dictionary,routedict = {}):
     writer = pd.ExcelWriter(outputxl,engine='openpyxl')
     writer.book = book
-    datafinal = pd.DataFrame(columns=['Orderno','Source','Destination','Legs','Travel_Modes','Carriers','Time','Fixed Freight Cost','Port/Airport/Rail Handling Cost','Documentation Cost','Equipment Cost','Extra Cost','VariableFreightCost','Bunker/ Fuel Cost','Warehouse Cost','Transit Duty','OrderDate','DemandPullAhead'])
-    datafinal_route = pd.DataFrame(columns=['Orderno','Source','Destination','Legs','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
+    datafinal = pd.DataFrame(columns=['Orderno','Source','Destination','Legs','Intermidiates','Travel_Modes','Carriers','Time','Fixed Freight Cost','Port/Airport/Rail Handling Cost','Documentation Cost','Equipment Cost','Extra Cost','VariableFreightCost','Bunker/ Fuel Cost','Warehouse Cost','Transit Duty','OrderDate','DemandPullAhead'])
+    datafinal_route = pd.DataFrame(columns=['Orderno','Source','Destination','Legs','Intermidiates','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
     for orderindex in dictionary:
         for routes in dictionary[orderindex]:
             finaldat = {}
             finaldat['Orderno'] = orderindex[0]
             finaldat['Source'] = routes[0][0]
             finaldat['Destination'] = routes[-1][1]
-            finaldat['Intermidiates'] = ''
+            finaldat['Intermidiates'] = routes[0][1]
             finaldat['Legs'] = len(routes) - 1
             finaldat['Travel_Modes'] = routes[0][2]
             finaldat['Carriers'] = routes[0][3]
@@ -336,7 +336,7 @@ def display(dictionary,routedict = {}):
             finaldat_['Order'] = orderindex_[0]
             finaldat_['Source'] = route_[0][0]
             finaldat_['Destination'] = route_[-1][1]
-            finaldat_['Intermidiates'] = ''
+            finaldat_['Intermidiates'] = route_[0][1]
             finaldat_['Legs'] = len(route_) - 1
             finaldat_['Travel_Mode'] = route_[0][2]
             finaldat_['Carrier'] = route_[0][3]
@@ -358,7 +358,7 @@ def display(dictionary,routedict = {}):
                 finaldat_['Weight_Utilitation'] += ',' +'{}'.format(route_[routeslice_I][7])
                 finaldat_['Volume_Utilization'] += ',' +'{}'.format(route_[routeslice_I][8])
             datafinal_route.loc[len(datafinal_route.index)] = finaldat_
-    datafinal_route.to_excel(writer,sheet_name='route')
+    datafinal_route.to_excel(writer,sheet_name='ROUTING')
     datafinal.to_excel(writer,sheet_name='cost')
     writer.close()
 #................................................................................
