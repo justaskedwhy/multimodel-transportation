@@ -282,7 +282,7 @@ def display(dictionary,routedict = {}):
             finaldat['Orderno'] = orderindex[0]
             finaldat['Source'] = routes[0][0]
             finaldat['Destination'] = routes[-1][1]
-            finaldat['Intermidiates'] = routes[0][1]
+            finaldat['Intermidiates'] = routes[0][0] + '--->' + routes[0][1]
             finaldat['Legs'] = len(routes) - 1
             finaldat['Travel_Modes'] = routes[0][2]
             finaldat['Carriers'] = routes[0][3]
@@ -301,7 +301,7 @@ def display(dictionary,routedict = {}):
             if type(finaldat['DemandPullAhead']) == str:
                 finaldat['DemandPullAhead'] = routes[0][14]  
                 for routeslice_i in range(1,len(routes)):
-                    finaldat['Intermidiates'] += '--->' + routes[routeslice_i][0]
+                    finaldat['Intermidiates'] += '--->' + routes[routeslice_i][1]
                     finaldat['Travel_Modes'] += ',' + routes[routeslice_i][2]
                     finaldat['Carriers'] += ',' + routes[routeslice_i][3]
                     finaldat['Time'] += routes[routeslice_i][10]
@@ -316,7 +316,7 @@ def display(dictionary,routedict = {}):
                     finaldat['Transit Duty'] += routes[routeslice_i][23]
             else:
                 for routeslice_i in range(1,len(routes)):
-                    finaldat['Intermidiates'] += '--->' + routes[routeslice_i][0]
+                    finaldat['Intermidiates'] += '--->' + routes[routeslice_i][1]
                     finaldat['Travel_Modes'] += ',' + routes[routeslice_i][2]
                     finaldat['Carriers'] += ',' + routes[routeslice_i][3]
                     finaldat['Time'] = finaldat['Time'] + routes[routeslice_i][10]
@@ -336,7 +336,7 @@ def display(dictionary,routedict = {}):
             finaldat_['Order'] = orderindex_[0]
             finaldat_['Source'] = route_[0][0]
             finaldat_['Destination'] = route_[-1][1]
-            finaldat_['Intermidiates'] = route_[0][1]
+            finaldat_['Intermidiates'] =route_[0][0] + '--->' + route_[0][1]
             finaldat_['Legs'] = len(route_) - 1
             finaldat_['Travel_Mode'] = route_[0][2]
             finaldat_['Carrier'] = route_[0][3]
