@@ -41,7 +41,7 @@ def variablefinder(travelmode,carrier,initial,final):
         variable['transit_time'] = 0
         return variable
     #dataslice is a specific row which contain data specific to (travelmode,initial,final) 
-    dataslice = data.loc[(data['Travel Mode'] == travelmode) & (data['Source']  == initial)  & (data['Destination'] == final)]
+    dataslice = data.loc[(data['Travel Mode'] == travelmode) & (data['Source']  == initial)  & (data['Destination'] == final) & (data['Carrier'] == carrier)]
     variable['custom_clearance_time'] =dataslice['CustomClearance time (hours)'].item()
     variable['Port_Airport_RailHandling_Time'] = dataslice['Port/Airport/Rail Handling time (hours)'].item()
     variable['extra_time'] = dataslice['Extra Time'].item()
@@ -224,6 +224,7 @@ def consolidate_Routes(routes):
             consoildation(orderindex[0],route,routes,df)
         d_consoildate[orderindex] = tuple(t_consolidate)
         t_consolidate.clear()
+    #print(one_stop)
     for orderno in one_stop:
         consolidation_0(tuple(one_stop[orderno]))
         for i in t_consolidate_0:
@@ -259,15 +260,19 @@ def cost(route_dict_con,route_dict):
                 total_ut = np.max((total_volumn_ut,total_weight_ut))
                 if total_ut == total_weight_ut:
                     ratio = np.divide(routeslice_pd['Weight_Utilitation'].item(),weight_ut)
+                    #print(ratio)
                     route_index = data.index[((data['Source'] == routeslice_pd['Source'].item()) & (data['Destination'] == routeslice_pd['Destination'].item()) & (data['Travel Mode'] == routeslice_pd['Travel_Mode'].item()) & (data['Carrier'] == routeslice_pd['Carrier'].item()))]
                     route_ = data.loc[route_index].to_dict('records')
                     cost_pd = calvalue(route_[0],routeslice_pd['Volume_Utilization'].item(),routeslice_pd['Weight_Utilitation'].item(),total_ut,ratio,orderindex[1])
+                    print(cost_pd)
                 else:
                     ratio = np.divide(routeslice_pd['Volume_Utilization'].item(),volumn_ut)
+                    #print(ratio)
                     route_index = data.index[((data['Source'] == routeslice_pd['Source'].item()) & (data['Destination'] == routeslice_pd['Destination'].item()) & (data['Travel Mode'] == routeslice_pd['Travel_Mode'].item()) & (data['Carrier'] == routeslice_pd['Carrier'].item()))]
                     route_ = data.loc[route_index].to_dict('records')
                     cost_pd = calvalue(route_[0],routeslice_pd['Volume_Utilization'].item(),routeslice_pd['Weight_Utilitation'].item(),total_ut,ratio,orderindex[1])
                 routenew_pd = routeslice_pd.merge(cost_pd,left_index=True,right_index=True)
+                #print(routenew_pd)
                 costslice += tuple(routenew_pd.itertuples(index=False,name=None))
             cost_tuple.append(costslice)
         d_cost[orderindex] = tuple(cost_tuple)
@@ -380,5 +385,12 @@ for inputslice in order_data.values.tolist():
 #             print(k)
 #         print('\n')
 consolidate_Routes(d_route)
+# for i in d_consoildate:
+#     print(i)
+#     for j in d_consoildate[i]:
+#         for k in j:
+#             print(k)
+#         print('\n')
+#     print('\n')
 cost(d_consoildate,d_route)
 display(d_cost,d_route)
