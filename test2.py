@@ -224,7 +224,6 @@ def consolidate_Routes(routes):
             consoildation(orderindex[0],route,routes,df)
         d_consoildate[orderindex] = tuple(t_consolidate)
         t_consolidate.clear()
-    #print(one_stop)
     for orderno in one_stop:
         consolidation_0(tuple(one_stop[orderno]))
         for i in t_consolidate_0:
@@ -260,19 +259,15 @@ def cost(route_dict_con,route_dict):
                 total_ut = np.max((total_volumn_ut,total_weight_ut))
                 if total_ut == total_weight_ut:
                     ratio = np.divide(routeslice_pd['Weight_Utilitation'].item(),weight_ut)
-                    #print(ratio)
                     route_index = data.index[((data['Source'] == routeslice_pd['Source'].item()) & (data['Destination'] == routeslice_pd['Destination'].item()) & (data['Travel Mode'] == routeslice_pd['Travel_Mode'].item()) & (data['Carrier'] == routeslice_pd['Carrier'].item()))]
                     route_ = data.loc[route_index].to_dict('records')
                     cost_pd = calvalue(route_[0],routeslice_pd['Volume_Utilization'].item(),routeslice_pd['Weight_Utilitation'].item(),total_ut,ratio,orderindex[1])
-                    print(cost_pd)
                 else:
                     ratio = np.divide(routeslice_pd['Volume_Utilization'].item(),volumn_ut)
-                    #print(ratio)
                     route_index = data.index[((data['Source'] == routeslice_pd['Source'].item()) & (data['Destination'] == routeslice_pd['Destination'].item()) & (data['Travel Mode'] == routeslice_pd['Travel_Mode'].item()) & (data['Carrier'] == routeslice_pd['Carrier'].item()))]
                     route_ = data.loc[route_index].to_dict('records')
                     cost_pd = calvalue(route_[0],routeslice_pd['Volume_Utilization'].item(),routeslice_pd['Weight_Utilitation'].item(),total_ut,ratio,orderindex[1])
                 routenew_pd = routeslice_pd.merge(cost_pd,left_index=True,right_index=True)
-                #print(routenew_pd)
                 costslice += tuple(routenew_pd.itertuples(index=False,name=None))
             cost_tuple.append(costslice)
         d_cost[orderindex] = tuple(cost_tuple)
@@ -287,11 +282,11 @@ def display(dictionary,routedict = {}):
             finaldat['Orderno'] = orderindex[0]
             finaldat['Source'] = routes[0][0]
             finaldat['Destination'] = routes[-1][1]
-            finaldat['Intermidiates'] = routes[0][0] + '--->' + routes[0][1]
+            finaldat['Intermidiates'] = routes[0][0]
             finaldat['Legs'] = len(routes) - 1
-            finaldat['Travel_Modes'] = routes[0][2]
-            finaldat['Carriers'] = routes[0][3]
-            finaldat['Time'] = routes[0][10]
+            finaldat['Travel_Modes'] = ''
+            finaldat['Carriers'] = ''
+            finaldat['Time'] = 0
             finaldat['OrderDate'] = routes[0][11]
             finaldat['DemandPullAhead'] = routes[0][13]
             finaldat['Fixed Freight Cost'] = 0
@@ -305,10 +300,10 @@ def display(dictionary,routedict = {}):
             finaldat['Transit Duty'] = 0
             if type(finaldat['DemandPullAhead']) == str:
                 finaldat['DemandPullAhead'] = routes[0][14]  
-                for routeslice_i in range(1,len(routes)):
+                for routeslice_i in range(0,len(routes)):
                     finaldat['Intermidiates'] += '--->' + routes[routeslice_i][1]
-                    finaldat['Travel_Modes'] += ',' + routes[routeslice_i][2]
-                    finaldat['Carriers'] += ',' + routes[routeslice_i][3]
+                    finaldat['Travel_Modes'] += routes[routeslice_i][2] + ','
+                    finaldat['Carriers'] +=  routes[routeslice_i][3] + ',' 
                     finaldat['Time'] += routes[routeslice_i][10]
                     finaldat['Fixed Freight Cost'] += routes[routeslice_i][15]
                     finaldat['Port/Airport/Rail Handling Cost'] += routes[routeslice_i][16]
@@ -320,10 +315,10 @@ def display(dictionary,routedict = {}):
                     finaldat['Warehouse Cost'] += routes[routeslice_i][22]
                     finaldat['Transit Duty'] += routes[routeslice_i][23]
             else:
-                for routeslice_i in range(1,len(routes)):
+                for routeslice_i in range(0,len(routes)):
                     finaldat['Intermidiates'] += '--->' + routes[routeslice_i][1]
-                    finaldat['Travel_Modes'] += ',' + routes[routeslice_i][2]
-                    finaldat['Carriers'] += ',' + routes[routeslice_i][3]
+                    finaldat['Travel_Modes'] +=   routes[routeslice_i][2] + ','
+                    finaldat['Carriers'] +=   routes[routeslice_i][3] + ','
                     finaldat['Time'] = finaldat['Time'] + routes[routeslice_i][10]
                     finaldat['Fixed Freight Cost'] += routes[routeslice_i][14]
                     finaldat['Port/Airport/Rail Handling Cost'] += routes[routeslice_i][15]
