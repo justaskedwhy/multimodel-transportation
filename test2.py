@@ -274,7 +274,7 @@ def cost(route_dict_con,route_dict):
 def display(dictionary,routedict = {}):
     writer = pd.ExcelWriter(outputxl,engine='openpyxl')
     writer.book = book
-    datafinal = pd.DataFrame(columns=['Orderno','Source','Destination','Legs','Intermidiates','Travel_Modes','Carriers','Time','Fixed Freight Cost','Port/Airport/Rail Handling Cost','Documentation Cost','Equipment Cost','Extra Cost','VariableFreightCost','Bunker/ Fuel Cost','Warehouse Cost','Transit Duty','OrderDate','DemandPullAhead'])
+    datafinal = pd.DataFrame(columns=['Orderno','Source','Destination','Legs','Intermidiates','Travel_Modes','Carriers','Time','Fixed Freight Cost','Port/Airport/Rail Handling Cost','Documentation Cost','Equipment Cost','Extra Cost','VariableFreightCost','Bunker/ Fuel Cost','Warehouse Cost','Transit Duty','Total Cost','OrderDate','DemandPullAhead'])
     datafinal_route = pd.DataFrame(columns=['Orderno','Source','Destination','Legs','Intermidiates','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
     for orderindex in dictionary:
         for routes in dictionary[orderindex]:
@@ -329,6 +329,9 @@ def display(dictionary,routedict = {}):
                     finaldat['Bunker/ Fuel Cost'] += routes[routeslice_i][20]
                     finaldat['Warehouse Cost'] += routes[routeslice_i][21]
                     finaldat['Transit Duty'] += routes[routeslice_i][22]
+            finaldat['Carriers'] = finaldat['Carriers'][:-1]
+            finaldat['Travel_Modes'] = finaldat['Travel_Modes'][:-1] 
+            finaldat['Total Cost'] = finaldat['Fixed Freight Cost'] + finaldat['Port/Airport/Rail Handling Cost'] + finaldat['Documentation Cost'] + finaldat['Equipment Cost'] + finaldat['Extra Cost'] + finaldat['VariableFreightCost'] + finaldat['Bunker/ Fuel Cost'] + finaldat['Warehouse Cost'] + finaldat['Transit Duty']
             datafinal.loc[len(datafinal.index)] = finaldat
     for orderindex_ in routedict:
         for route_ in routedict[orderindex_]:
