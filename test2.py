@@ -145,7 +145,7 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
     last_dict = start_dict.copy()
     slice1 = 1
     for slice in range(1,one_sort.shape[0]):
-        if one_sort.loc[slice,'Date'] >= start + datetime.timedelta(days=pullahead):#checks if the next routes is more that pullahead days from the present route 
+        if one_sort.loc[slice,'Date'] >= start + datetime.timedelta(days=pullahead) and one_sort.loc[slice,'Date'] <start:#checks if the next routes is more that pullahead days from the present route #and one_sort.loc[slice,'Date'] <start is experimental 
             break
         last = one_sort.loc[slice,'Date']
         last_orderindex = one_sort.loc[slice,'Order']
