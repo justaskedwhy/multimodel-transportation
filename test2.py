@@ -135,57 +135,53 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
         return#avoids error
     one_stop_df = pd.DataFrame(zero_routes,columns=['Order','Source','Destination','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
     one_sort = one_stop_df.sort_values('Date')
-    start_dict = one_sort.loc[0].to_dict()
-    pullahead = eval(start_dict['Order'])[5]
-    start = start_dict['Date']
-    up_volumn_ut = np.ceil(start_dict['Volume_Utilization']) 
-    up_weight_ut = np.ceil(start_dict['Weight_Utilitation']) 
-    last = None
-    last_orderindex = ''
-    last_dict = start_dict.copy()
-    slice1 = 1
-    for slice in range(1,one_sort.shape[0]):
-        if one_sort.loc[slice,'Date'] >= start + datetime.timedelta(days=pullahead) and one_sort.loc[slice,'Date'] <start:#checks if the next routes is more that pullahead days from the present route #and one_sort.loc[slice,'Date'] <start is experimental 
-            break
-        last = one_sort.loc[slice,'Date']
-        last_orderindex = one_sort.loc[slice,'Order']
-        start_dict['Weight_Utilitation'] += one_sort.loc[slice,'Weight_Utilitation']#adds the demands
-        start_dict['Volume_Utilization'] += one_sort.loc[slice,'Volume_Utilization']
-        slice1 = slice
-    if start_dict == last_dict:
-        start_dict['DemandPullAhead'] = True
-        t_consolidate_0.append((tuple(start_dict.values())[0],(tuple(start_dict.values())[1:],)))
-        consolidation_0(zero_routes[slice1:])
-        return
-    last_dict['Date'] = last
-    last_dict['Order'] = last_orderindex
-    if (start_dict['Volume_Utilization'] < up_volumn_ut and start_dict['Weight_Utilitation'] < up_weight_ut):
-        start_dict['DemandPullAhead'] = True#conformation
-        t_consolidate_0.append((tuple(start_dict.values())[0],(tuple(start_dict.values())[1:],)))
-        return
-    if start_dict['Weight_Utilitation'] >= start_dict['Volume_Utilization']:
-        new_weight_Ut = up_weight_ut
-        ratio = np.divide(new_weight_Ut,start_dict['Weight_Utilitation'])
-        new_volumn_Ut = np.multiply(start_dict['Volume_Utilization'],ratio)
-        last_weight_Ut = start_dict['Weight_Utilitation'] - new_weight_Ut
-        last_volumn_Ut = start_dict['Volume_Utilization'] - new_volumn_Ut
-        start_dict['Volume_Utilization'] = new_volumn_Ut
-        start_dict['Weight_Utilitation'] = new_weight_Ut
-        last_dict['Weight_Utilitation'] = last_weight_Ut
-        last_dict['Volume_Utilization'] = last_volumn_Ut
-    elif start_dict['Volume_Utilization'] > start_dict['Weight_Utilitation']:
-        new_volumn_Ut = up_volumn_ut
-        ratio = np.divide(new_volumn_Ut,start_dict['Volume_Utilization'])
-        new_weight_Ut = np.multiply(start_dict['Weight_Utilitation'],ratio)
-        last_weight_Ut = start_dict['Weight_Utilitation'] - new_weight_Ut
-        last_volumn_Ut = start_dict['Volume_Utilization'] - new_volumn_Ut
-        start_dict['Volume_Utilization'] = new_volumn_Ut
-        start_dict['Weight_Utilitation'] = new_weight_Ut
-        last_dict['Weight_Utilitation'] = last_weight_Ut
-        last_dict['Volume_Utilization'] = last_volumn_Ut
-    start_dict['DemandPullAhead'] = True
-    t_consolidate_0.append((tuple(start_dict.values())[0],(tuple(start_dict.values())[1:],)))#('orderindex',((route)))
-    consolidation_0((tuple(last_dict.values()),) + zero_routes[slice1+1:])
+    current_row_index = 0
+    pullahead = eval(one_sort.loc[current_row_index,'Order'])
+    added_volumn_ut = one_sort.loc[current_row_index,'Volume_Utilization']
+    added_weight_ut = one_sort.loc[current_row_index,'Weight_Utilitation']
+    for slice in range(one_sort.shape[0]):
+        current_date = one_sort.loc[current_row_index,'Date']
+        current_row_volumn_ut = one_sort.loc[current_row_index,'Volume_Utilization']
+        current_row_weight_ut = one_sort.loc[current_row_index,'Weight_Utilitation']
+        if one_sort.loc[slice,'Weight_Utilitation'] == 0 or current_row_index == slice:#checks if the next routes is more that pullahead days from the present route #and one_sort.loc[slice,'Date'] <start is experimental 
+            continue
+        if not (one_sort.loc[slice,'Date'] >= current_date + datetime.timedelta(days=pullahead)):
+            one_sort.loc[current_row_index,'Volume_Utilization'] = added_volumn_ut
+            one_sort.loc[current_row_index,'Weight_Utilitation'] = added_weight_ut
+            added_volumn_ut = one_sort.loc[slice,'Volume_Utilization']
+            added_weight_ut = one_sort.loc[slice,'Weight_Utilitation']
+            current_row_index = slice
+        variable_row_volumn_ut = one_sort.loc[slice,'Volume_Utilization']
+        variable_row_weight_ut = one_sort.loc[slice,'Weight_Utilitation']
+        one_sort.loc[slice,'Volume_Utilization'] = 0
+        one_sort.loc[slice,'Weight_Utilitation'] = 0
+        added_volumn_ut += variable_row_volumn_ut 
+        added_weight_ut += variable_row_weight_ut 
+        if added_volumn_ut >= np.ceil(current_row_volumn_ut):
+            ratio = np.divide(np.ceil(current_row_volumn_ut),added_volumn_ut)
+            one_sort.loc[current_row_index,'Volume_Utilization'] = np.ceil(current_row_volumn_ut)
+            one_sort.loc[slice,'Volume_Utilization'] = added_volumn_ut - np.ceil(current_row_volumn_ut)
+            one_sort.loc[current_row_index,'Weight_Utilitation'] = np.multiply(ratio,added_weight_ut)
+            one_sort.loc[slice,'Weight_Utilitation'] = added_weight_ut - np.multiply(ratio,added_weight_ut)
+            added_volumn_ut = added_volumn_ut - np.ceil(current_row_volumn_ut)
+            added_weight_ut = added_weight_ut - np.multiply(ratio,added_weight_ut)
+            current_row_index = slice
+        elif added_weight_ut >= np.ceil(current_row_weight_ut):
+            ratio = np.divide(np.ceil(current_row_weight_ut),added_weight_ut)
+            one_sort.loc[current_row_index,'Weight_Utilitation'] = np.ceil(current_row_weight_ut)
+            one_sort.loc[slice,'Weight_Utilitation'] = added_weight_ut - np.ceil(current_row_weight_ut) 
+            one_sort.loc[current_row_index,'Volume_Utilization'] = np.multiply(ratio,added_volumn_ut)
+            one_sort.loc[slice,'Volume_Utilization'] = added_volumn_ut - np.multiply(ratio,added_volumn_ut)
+            added_weight_ut = added_weight_ut - np.ceil(current_row_weight_ut) 
+            added_volumn_ut = added_volumn_ut - np.multiply(ratio,added_volumn_ut)
+            current_row_index =slice
+    else:
+        one_sort.loc[slice,'Volume_Utilization'] = added_volumn_ut
+        one_sort.loc[slice,'Weight_Utilitation'] = added_weight_ut
+    one_sort['DemandPullAhead'] = True
+    for slice in range(one_sort.shape[0]):
+        d_one_sort = one_sort.loc[slice].to_dict()
+        t_consolidate_0.append((tuple(d_one_sort.values())[0],(tuple(d_one_sort.values())[1:],)))
 def consoildation(orderno,route,routedictionary,consolidant):
     fol = False
     pt = consolidant.copy()
