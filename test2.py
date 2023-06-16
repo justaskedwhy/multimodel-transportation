@@ -136,21 +136,22 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
     one_stop_df = pd.DataFrame(zero_routes,columns=['Order','Source','Destination','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
     one_sort = one_stop_df.sort_values('Date')
     current_row_index = 0
-    pullahead = eval(one_sort.loc[current_row_index,'Order'])
+    pullahead = eval(one_sort.loc[current_row_index,'Order'])[-1]
     added_volumn_ut = one_sort.loc[current_row_index,'Volume_Utilization']
     added_weight_ut = one_sort.loc[current_row_index,'Weight_Utilitation']
     for slice in range(one_sort.shape[0]):
         current_date = one_sort.loc[current_row_index,'Date']
         current_row_volumn_ut = one_sort.loc[current_row_index,'Volume_Utilization']
         current_row_weight_ut = one_sort.loc[current_row_index,'Weight_Utilitation']
-        if one_sort.loc[slice,'Weight_Utilitation'] == 0 or current_row_index == slice:#checks if the next routes is more that pullahead days from the present route #and one_sort.loc[slice,'Date'] <start is experimental 
+        if (one_sort.loc[slice,'Weight_Utilitation'] == 0 and one_sort.loc[slice,'Volume_Utilization']) or current_row_index == slice:#checks if the next routes is more that pullahead days from the present route #and one_sort.loc[slice,'Date'] <start is experimental 
             continue
-        if not (one_sort.loc[slice,'Date'] >= current_date + datetime.timedelta(days=pullahead)):
+        if not (one_sort.loc[slice,'Date'] <= current_date + datetime.timedelta(days=pullahead)):
             one_sort.loc[current_row_index,'Volume_Utilization'] = added_volumn_ut
             one_sort.loc[current_row_index,'Weight_Utilitation'] = added_weight_ut
             added_volumn_ut = one_sort.loc[slice,'Volume_Utilization']
             added_weight_ut = one_sort.loc[slice,'Weight_Utilitation']
             current_row_index = slice
+            continue
         variable_row_volumn_ut = one_sort.loc[slice,'Volume_Utilization']
         variable_row_weight_ut = one_sort.loc[slice,'Weight_Utilitation']
         one_sort.loc[slice,'Volume_Utilization'] = 0
@@ -209,10 +210,10 @@ def consolidate_Routes(routes):
     for orderindex in routes:
         for route in routes[orderindex]:
             if len(route) == 1:
-                if x != (orderindex[0],route[0][2],route[0][3]):
+                x = one_stop.keys()
+                if not (orderindex[0],route[0][2],route[0][3]) in x:#( orderindex, travel mode, carrier)
                     one_stop[orderindex[0],route[0][2],route[0][3]] = []
-                    x = orderindex[0],route[0][2],route[0][3]
-                one_stop[(orderindex[0],route[0][2],route[0][3])] += [('{}'.format((orderindex)),) + (route[0])]#('orderindex',....,...,..)
+                one_stop[(orderindex[0],route[0][2],route[0][3])].append(('{}'.format((orderindex)),) + (route[0]))#('orderindex',....,...,..)
             df = pd.DataFrame(route,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
             df['Consolidant'] = ''
             df['DemandPullAhead'] = False
