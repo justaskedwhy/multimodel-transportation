@@ -134,18 +134,20 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
     if len(zero_routes) == 0:
         return#avoids error
     one_stop_df = pd.DataFrame(zero_routes,columns=['Order','Source','Destination','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
-    one_sort = one_stop_df.sort_values('Date')
+    one_sort = one_stop_df.sort_values('Date',ignore_index=True)
     current_row_index = 0
     pullahead = eval(one_sort.loc[current_row_index,'Order'])[-1]
     added_volumn_ut = one_sort.loc[current_row_index,'Volume_Utilization']
     added_weight_ut = one_sort.loc[current_row_index,'Weight_Utilitation']
     for slice in range(one_sort.shape[0]):
+        one_sort.to_csv(r"C:\Users\vjr\Desktop\eqn.txt",sep='\t',mode='a')
         current_date = one_sort.loc[current_row_index,'Date']
         current_row_volumn_ut = one_sort.loc[current_row_index,'Volume_Utilization']
         current_row_weight_ut = one_sort.loc[current_row_index,'Weight_Utilitation']
         if (one_sort.loc[slice,'Weight_Utilitation'] == 0 and one_sort.loc[slice,'Volume_Utilization']) or current_row_index == slice:#checks if the next routes is more that pullahead days from the present route #and one_sort.loc[slice,'Date'] <start is experimental 
             continue
         if not (one_sort.loc[slice,'Date'] <= current_date + datetime.timedelta(days=pullahead)):
+            print(slice,2,current_date + datetime.timedelta(days=pullahead),one_sort.loc[slice,'Date'])
             one_sort.loc[current_row_index,'Volume_Utilization'] = added_volumn_ut
             one_sort.loc[current_row_index,'Weight_Utilitation'] = added_weight_ut
             added_volumn_ut = one_sort.loc[slice,'Volume_Utilization']
@@ -158,6 +160,7 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
         one_sort.loc[slice,'Weight_Utilitation'] = 0
         added_volumn_ut += variable_row_volumn_ut 
         added_weight_ut += variable_row_weight_ut 
+        # print(added_weight_ut ,slice)
         if added_volumn_ut >= np.ceil(current_row_volumn_ut):
             ratio = np.divide(np.ceil(current_row_volumn_ut),added_volumn_ut)
             one_sort.loc[current_row_index,'Volume_Utilization'] = np.ceil(current_row_volumn_ut)
@@ -168,6 +171,7 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
             added_weight_ut = added_weight_ut - np.multiply(ratio,added_weight_ut)
             current_row_index = slice
         elif added_weight_ut >= np.ceil(current_row_weight_ut):
+            print('sdhubfj',slice)
             ratio = np.divide(np.ceil(current_row_weight_ut),added_weight_ut)
             one_sort.loc[current_row_index,'Weight_Utilitation'] = np.ceil(current_row_weight_ut)
             one_sort.loc[slice,'Weight_Utilitation'] = added_weight_ut - np.ceil(current_row_weight_ut) 
@@ -211,9 +215,9 @@ def consolidate_Routes(routes):
         for route in routes[orderindex]:
             if len(route) == 1:
                 x = one_stop.keys()
-                if not (orderindex[0],route[0][2],route[0][3]) in x:#( orderindex, travel mode, carrier)
-                    one_stop[orderindex[0],route[0][2],route[0][3]] = []
-                one_stop[(orderindex[0],route[0][2],route[0][3])].append(('{}'.format((orderindex)),) + (route[0]))#('orderindex',....,...,..)
+                if not (route[0][:3]) in x:#( source,destination, travel mode, carrier)
+                    one_stop[route[0][:3]] = []
+                one_stop[(route[0][:3])].append(('{}'.format((orderindex)),) + (route[0]))#('orderindex',....,...,..)
             df = pd.DataFrame(route,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
             df['Consolidant'] = ''
             df['DemandPullAhead'] = False
@@ -221,8 +225,8 @@ def consolidate_Routes(routes):
             consoildation(orderindex[0],route,routes,df)
         d_consoildate[orderindex] = tuple(t_consolidate)
         t_consolidate.clear()
-    for orderno in one_stop:
-        consolidation_0(tuple(one_stop[orderno]))
+    for one_stop_keys in one_stop:
+        consolidation_0(tuple(one_stop[one_stop_keys]))
         for i in t_consolidate_0:
             d_consoildate[eval(i[0])] += (i[1],)
         t_consolidate_0.clear()
@@ -388,4 +392,4 @@ consolidate_Routes(d_route)
 #         print('\n')
 #     print('\n')
 cost(d_consoildate,d_route)
-display(d_cost,d_route)
+#display(d_cost,d_route)
