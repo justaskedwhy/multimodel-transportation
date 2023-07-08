@@ -31,9 +31,9 @@ def calvalue(route_info,volume_ut,weight_ut,total_ut,ratio,order_value):
     #method 2
     dict['VariableFreightCost'] = [route_info['VariableFreightCost']*np.max((np.ceil((volume_ut*route_info['Container Size'])*route_info['VolumetricWeightConversionFactor']),np.ceil(weight_ut*route_info['MaxWeightPerEquipment'])))]
     #method 3
-    dict['Bunker/FuelCost'] = [(route_info['Bunker/ Fuel Cost']*total_ut)*ratio]
+    dict['Bunker/FuelCost'] = [((route_info['Bunker/ Fuel Cost']*total_ut)*ratio*total_ut)*ratio]
     dict['WarehouseCost'] = [route_info['Warehouse Cost']*(volume_ut*route_info['Container Size'])*ratio]
-    dict['TransitDuty'] = [route_info['Transit Duty']*order_value*ratio]
+    dict['TransitDuty'] = [route_info['Transit Duty']*order_value*ratio*ratio]
     return pd.DataFrame(dict)
 def variablefinder(travelmode,carrier,initial,final):
     variable = {}
