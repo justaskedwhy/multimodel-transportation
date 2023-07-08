@@ -31,9 +31,9 @@ def calvalue(route_info,volume_ut,weight_ut,total_ut,ratio,order_value):
     #method 2
     dict['VariableFreightCost'] = [route_info['VariableFreightCost']*np.max((np.ceil((volume_ut*route_info['Container Size'])*route_info['VolumetricWeightConversionFactor']),np.ceil(weight_ut*route_info['MaxWeightPerEquipment'])))]
     #method 3
-    dict['Bunker/FuelCost'] = [route_info['Bunker/ Fuel Cost']]
+    dict['Bunker/FuelCost'] = [(route_info['Bunker/ Fuel Cost']*total_ut)*ratio]
     dict['WarehouseCost'] = [route_info['Warehouse Cost']*(volume_ut*route_info['Container Size'])]
-    dict['TransitDuty'] = [route_info['Transit Duty']*order_value]
+    dict['TransitDuty'] = [route_info['Transit Duty']*order_value*ratio]
     return pd.DataFrame(dict)
 def variablefinder(travelmode,carrier,initial,final):
     variable = {}
@@ -214,9 +214,9 @@ def consolidate_Routes(routes):
         for route in routes[orderindex]:
             if len(route) == 1:
                 x = one_stop.keys()
-                if not (route[0][:3]) in x:#( source,destination, travel mode, carrier)
-                    one_stop[route[0][:3]] = []
-                one_stop[(route[0][:3])].append(('{}'.format((orderindex)),) + (route[0]))#('orderindex',....,...,..)
+                if not (route[0][:4]) in x:#( source,destination, travel mode, carrier)
+                    one_stop[route[0][:4]] = []
+                one_stop[(route[0][:4])].append(('{}'.format((orderindex)),) + (route[0]))#('orderindex',....,...,..)
             df = pd.DataFrame(route,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
             df['Consolidant'] = ''
             df['DemandPullAhead'] = False
