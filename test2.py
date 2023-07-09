@@ -140,7 +140,6 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
     added_volumn_ut = one_sort.loc[current_row_index,'Volume_Utilization']
     added_weight_ut = one_sort.loc[current_row_index,'Weight_Utilitation']
     for slice in range(one_sort.shape[0]):
-        # one_sort.to_csv(r"C:\Users\vjr\Desktop\eqn.txt",sep='\t',mode='a')
         current_date = one_sort.loc[current_row_index,'Date']
         current_row_volumn_ut = one_sort.loc[current_row_index,'Volume_Utilization']
         current_row_weight_ut = one_sort.loc[current_row_index,'Weight_Utilitation']
@@ -160,7 +159,7 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
         added_volumn_ut += variable_row_volumn_ut 
         added_weight_ut += variable_row_weight_ut 
         if added_volumn_ut >= np.ceil(current_row_volumn_ut):
-            ratio = np.divide(np.ceil(current_row_volumn_ut)-current_row_volumn_ut,variable_row_volumn_ut)
+            ratio = np.divide(np.ceil(current_row_volumn_ut)-added_volumn_ut+variable_row_volumn_ut,variable_row_volumn_ut)
             transfer_variable_row_weight_ut = np.multiply(ratio,variable_row_weight_ut)
             one_sort.loc[current_row_index,'Volume_Utilization'] = np.ceil(current_row_volumn_ut)
             one_sort.loc[slice,'Volume_Utilization'] = added_volumn_ut - np.ceil(current_row_volumn_ut)
@@ -170,7 +169,7 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
             added_weight_ut = variable_row_weight_ut - transfer_variable_row_weight_ut
             current_row_index = slice
         elif added_weight_ut >= np.ceil(current_row_weight_ut):
-            ratio = np.divide(np.ceil(current_row_weight_ut),added_weight_ut)
+            ratio = np.divide(np.ceil(current_row_weight_ut) - added_weight_ut + variable_row_weight_ut, variable_row_weight_ut)
             transfer_variable_row_volumn_ut = np.multiply(ratio,variable_row_volumn_ut)
             one_sort.loc[current_row_index,'Weight_Utilitation'] = np.ceil(current_row_weight_ut)
             one_sort.loc[slice,'Weight_Utilitation'] = added_weight_ut - np.ceil(current_row_weight_ut) 
@@ -179,6 +178,7 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
             added_weight_ut = added_weight_ut - np.ceil(current_row_weight_ut) 
             added_volumn_ut = variable_row_volumn_ut - transfer_variable_row_volumn_ut
             current_row_index =slice
+        one_sort.to_csv(r"C:\Users\vjr\Desktop\eqn.txt",sep='\t',mode='a')
     else:
         one_sort.loc[slice,'Volume_Utilization'] = added_volumn_ut
         one_sort.loc[slice,'Weight_Utilitation'] = added_weight_ut
@@ -391,4 +391,4 @@ consolidate_Routes(d_route)
 #         print('\n')
 #     print('\n')
 cost(d_consoildate,d_route)
-display(d_cost,d_route)
+#display(d_cost,d_route)
