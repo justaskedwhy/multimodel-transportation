@@ -2,10 +2,9 @@ from tkinter import Tk  #changed to accept excel sheets
 from tkinter.filedialog import askopenfilename
 from openpyxl import load_workbook
 import datetime
+from pandas import Timestamp
 import pandas as pd
 import numpy as np
-from pandas import Timestamp
-
 Tk().withdraw() 
 inputxl = askopenfilename(title='input')  
 outputxl  = askopenfilename(title = 'output')
@@ -160,26 +159,49 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
         one_sort.loc[slice,'Weight_Utilitation'] = 0
         added_volumn_ut += variable_row_volumn_ut 
         added_weight_ut += variable_row_weight_ut 
-        if added_volumn_ut >= np.ceil(current_row_volumn_ut):
-            ratio = np.divide(np.ceil(current_row_volumn_ut)-added_volumn_ut+variable_row_volumn_ut,variable_row_volumn_ut)
-            transfer_variable_row_weight_ut = np.multiply(ratio,variable_row_weight_ut)
-            one_sort.loc[current_row_index,'Volume_Utilization'] = np.ceil(current_row_volumn_ut)
-            one_sort.loc[slice,'Volume_Utilization'] = added_volumn_ut - np.ceil(current_row_volumn_ut)
-            one_sort.loc[current_row_index,'Weight_Utilitation'] = current_row_weight_ut + transfer_variable_row_weight_ut
-            one_sort.loc[slice,'Weight_Utilitation'] = variable_row_weight_ut - transfer_variable_row_weight_ut
-            added_volumn_ut = added_volumn_ut - np.ceil(current_row_volumn_ut)
-            added_weight_ut = variable_row_weight_ut - transfer_variable_row_weight_ut
-            current_row_index = slice
-        elif added_weight_ut >= np.ceil(current_row_weight_ut):
-            ratio = np.divide(np.ceil(current_row_weight_ut) - added_weight_ut + variable_row_weight_ut, variable_row_weight_ut)
-            transfer_variable_row_volumn_ut = np.multiply(ratio,variable_row_volumn_ut)
-            one_sort.loc[current_row_index,'Weight_Utilitation'] = np.ceil(current_row_weight_ut)
-            one_sort.loc[slice,'Weight_Utilitation'] = added_weight_ut - np.ceil(current_row_weight_ut) 
-            one_sort.loc[current_row_index,'Volume_Utilization'] = current_row_volumn_ut + transfer_variable_row_volumn_ut
-            one_sort.loc[slice,'Volume_Utilization'] = variable_row_volumn_ut - transfer_variable_row_volumn_ut
-            added_weight_ut = added_weight_ut - np.ceil(current_row_weight_ut) 
-            added_volumn_ut = variable_row_volumn_ut - transfer_variable_row_volumn_ut
-            current_row_index =slice
+        condition = (bool(added_volumn_ut >= np.ceil(current_row_volumn_ut)),bool(added_weight_ut >= np.ceil(current_row_weight_ut)))
+        match condition:
+            case (True,False):
+                ratio = np.divide(np.ceil(current_row_volumn_ut)-added_volumn_ut+variable_row_volumn_ut,variable_row_volumn_ut)
+                transfer_variable_row_weight_ut = np.multiply(ratio,variable_row_weight_ut)
+                one_sort.loc[current_row_index,'Volume_Utilization'] = np.ceil(current_row_volumn_ut)
+                one_sort.loc[slice,'Volume_Utilization'] = added_volumn_ut - np.ceil(current_row_volumn_ut)
+                one_sort.loc[current_row_index,'Weight_Utilitation'] = added_weight_ut - variable_row_weight_ut + transfer_variable_row_weight_ut
+                one_sort.loc[slice,'Weight_Utilitation'] = variable_row_weight_ut - transfer_variable_row_weight_ut
+                added_volumn_ut = added_volumn_ut - np.ceil(current_row_volumn_ut)
+                added_weight_ut = variable_row_weight_ut - transfer_variable_row_weight_ut
+                current_row_index = slice
+            case (False,True):
+                ratio = np.divide(np.ceil(current_row_weight_ut) - added_weight_ut + variable_row_weight_ut, variable_row_weight_ut)
+                transfer_variable_row_volumn_ut = np.multiply(ratio,variable_row_volumn_ut)
+                one_sort.loc[current_row_index,'Weight_Utilitation'] = np.ceil(current_row_weight_ut)
+                one_sort.loc[slice,'Weight_Utilitation'] = added_weight_ut - np.ceil(current_row_weight_ut) 
+                one_sort.loc[current_row_index,'Volume_Utilization'] = added_volumn_ut - variable_row_volumn_ut + transfer_variable_row_volumn_ut
+                one_sort.loc[slice,'Volume_Utilization'] = variable_row_volumn_ut - transfer_variable_row_volumn_ut
+                added_weight_ut = added_weight_ut - np.ceil(current_row_weight_ut) 
+                added_volumn_ut = variable_row_volumn_ut - transfer_variable_row_volumn_ut
+                current_row_index =slice
+            case (True,True):
+                ratio_V = np.divide(np.ceil(current_row_volumn_ut) - added_volumn_ut + variable_row_volumn_ut, variable_row_volumn_ut)
+                ratio_W = np.divide(np.ceil(current_row_weight_ut) - added_weight_ut + variable_row_weight_ut, variable_row_weight_ut)
+                if ratio_V <= ratio_W:
+                    transfer_variable_row_weight_ut = np.multiply(ratio_V,variable_row_weight_ut)
+                    one_sort.loc[current_row_index,'Volume_Utilization'] = np.ceil(current_row_volumn_ut)
+                    one_sort.loc[slice,'Volume_Utilization'] = added_volumn_ut - np.ceil(current_row_volumn_ut)
+                    one_sort.loc[current_row_index,'Weight_Utilitation'] = added_weight_ut - variable_row_weight_ut + transfer_variable_row_weight_ut
+                    one_sort.loc[slice,'Weight_Utilitation'] = variable_row_weight_ut - transfer_variable_row_weight_ut
+                    added_volumn_ut = added_volumn_ut - np.ceil(current_row_volumn_ut)
+                    added_weight_ut = variable_row_weight_ut - transfer_variable_row_weight_ut
+                    current_row_index = slice
+                else:
+                    transfer_variable_row_volumn_ut = np.multiply(ratio_W,variable_row_volumn_ut)
+                    one_sort.loc[current_row_index,'Weight_Utilitation'] = np.ceil(current_row_weight_ut)
+                    one_sort.loc[slice,'Weight_Utilitation'] = added_weight_ut - np.ceil(current_row_weight_ut) 
+                    one_sort.loc[current_row_index,'Volume_Utilization'] = added_volumn_ut - variable_row_volumn_ut + transfer_variable_row_volumn_ut
+                    one_sort.loc[slice,'Volume_Utilization'] = variable_row_volumn_ut - transfer_variable_row_volumn_ut
+                    added_weight_ut = added_weight_ut - np.ceil(current_row_weight_ut) 
+                    added_volumn_ut = variable_row_volumn_ut - transfer_variable_row_volumn_ut
+                    current_row_index =slice
         one_sort.to_csv(r"C:\Users\vjr\Desktop\eqn.txt",sep='\t',mode='a')
     else:
         one_sort.loc[slice,'Volume_Utilization'] = added_volumn_ut
@@ -376,7 +398,7 @@ for inputslice in order_data.values.tolist():
             week = inputslice[7].strftime('%Y-%V')
         except:
             week = None
-    d_route[(inputslice[0],inputslice[3],inputslice[4],inputslice[5],inputslice[5],inputslice[8])] = tuple(t)#storing routes belonging to different orders with dictionary
+    d_route[(inputslice[0],inputslice[3],inputslice[4],inputslice[5],inputslice[7],inputslice[8])] = tuple(t)#storing routes belonging to different orders with dictionary
     t.clear()
 # for i in d_route:
 #     print(i)
@@ -393,4 +415,4 @@ consolidate_Routes(d_route)
 #         print('\n')
 #     print('\n')
 cost(d_consoildate,d_route)
-display(d_cost,d_route)
+# display(d_cost,d_route)
