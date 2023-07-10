@@ -4,6 +4,8 @@ from openpyxl import load_workbook
 import datetime
 import pandas as pd
 import numpy as np
+from pandas import Timestamp
+
 Tk().withdraw() 
 inputxl = askopenfilename(title='input')  
 outputxl  = askopenfilename(title = 'output')
@@ -191,7 +193,7 @@ def consoildation(orderno,route,routedictionary,consolidant):
     pt = consolidant.copy()
     to_consolidate_df = pd.DataFrame(route,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])#dataframes are easy to work with
     for orderindex in routedictionary:
-        if orderindex[0] == orderno:
+        if orderindex == orderno:
             continue
         routetuple = routedictionary[orderindex]
         for root in routetuple:
@@ -221,7 +223,7 @@ def consolidate_Routes(routes):
             df['Consolidant'] = ''
             df['DemandPullAhead'] = False
             #used in checking whether done through DemandPullAhead method
-            consoildation(orderindex[0],route,routes,df)
+            consoildation(orderindex,route,routes,df)
         d_consoildate[orderindex] = tuple(t_consolidate)
         t_consolidate.clear()
     for one_stop_keys in one_stop:
@@ -374,7 +376,7 @@ for inputslice in order_data.values.tolist():
             week = inputslice[7].strftime('%Y-%V')
         except:
             week = None
-    d_route[(inputslice[0],inputslice[3],inputslice[4],inputslice[5],week,inputslice[8])] = tuple(t)#storing routes belonging to different orders with dictionary
+    d_route[(inputslice[0],inputslice[3],inputslice[4],inputslice[5],inputslice[5],inputslice[8])] = tuple(t)#storing routes belonging to different orders with dictionary
     t.clear()
 # for i in d_route:
 #     print(i)
