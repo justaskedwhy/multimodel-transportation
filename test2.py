@@ -376,7 +376,7 @@ for inputslice in order_data.values.tolist():
             week = inputslice[7].strftime('%Y-%V')
         except:
             week = None
-    d_route[(inputslice[0],inputslice[3],inputslice[4],inputslice[5],inputslice[5],inputslice[8])] = tuple(t)#storing routes belonging to different orders with dictionary
+    d_route[(inputslice[0],inputslice[3],inputslice[4],inputslice[5],inputslice[7],inputslice[8])] = tuple(t)#storing routes belonging to different orders with dictionary
     t.clear()
 # for i in d_route:
 #     print(i)
