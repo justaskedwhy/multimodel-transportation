@@ -202,7 +202,7 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
                     added_weight_ut = added_weight_ut - np.ceil(current_row_weight_ut) 
                     added_volumn_ut = variable_row_volumn_ut - transfer_variable_row_volumn_ut
                     current_row_index =slice
-        one_sort.to_csv(r"C:\Users\vjr\Desktop\eqn.txt",sep='\t',mode='a')
+        # one_sort.to_csv(r"C:\Users\vjr\Desktop\eqn.txt",sep='\t',mode='a')
     else:
         one_sort.loc[slice,'Volume_Utilization'] = added_volumn_ut
         one_sort.loc[slice,'Weight_Utilitation'] = added_weight_ut
