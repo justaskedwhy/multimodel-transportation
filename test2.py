@@ -182,8 +182,8 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
                 added_volumn_ut = variable_row_volumn_ut - transfer_variable_row_volumn_ut
                 current_row_index =slice
             case (True,True):
-                ratio_V = np.divide(np.ceil(current_row_volumn_ut) - added_volumn_ut + variable_row_volumn_ut, variable_row_volumn_ut)
-                ratio_W = np.divide(np.ceil(current_row_weight_ut) - added_weight_ut + variable_row_weight_ut, variable_row_weight_ut)
+                ratio_V = np.divide(np.max(np.ceil(current_row_weight_ut),np.ceil(current_row_volumn_ut)) - added_volumn_ut + variable_row_volumn_ut, variable_row_volumn_ut)
+                ratio_W = np.divide(np.max(np.ceil(current_row_weight_ut),np.ceil(current_row_volumn_ut)) - added_weight_ut + variable_row_weight_ut, variable_row_weight_ut)
                 if ratio_V <= ratio_W:
                     transfer_variable_row_weight_ut = np.multiply(ratio_V,variable_row_weight_ut)
                     one_sort.loc[current_row_index,'Volume_Utilization'] = np.ceil(current_row_volumn_ut)
