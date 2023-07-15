@@ -58,6 +58,7 @@ def pc_new(nid,dest):
         p_.remove(i)
     return p_
 def route(n,nid,date,ini,fin,volume,weight,order_value,finaldat=()):#finaldat is in tuple because of the problems with list(local and globle variable problems)
+        #some might change
         if n == 0:
             for travelelement in travelmodes:
                 for carrierelement in carriermodes:
