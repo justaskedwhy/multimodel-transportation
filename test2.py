@@ -52,6 +52,24 @@ def variablefinder(travelmode,carrier,initial,final):
     variable['MaxWeightPerEquipment'] = dataslice['MaxWeightPerEquipment'].item()
     variable['VolumetricWeightConversionFactor'] = dataslice['VolumetricWeightConversionFactor'].item()
     return variable
+def variablefinder_for_ETA(initial,final,travelmode,carrier):
+    variables = {}
+    dataslice = data.loc[(data['Travel Mode'] == travelmode) & (data['Source']  == initial)  & (data['Destination'] == final) & (data['Carrier'] == carrier)]
+    
+    Weekday_availability = [dataslice[i].item() for i in ('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday')]
+    import numpy as np
+    variables['Weekday_Availability'] = Weekday_availability
+    if np.isnan(sum(Weekday_availability)):
+        variables['Weekday_Availability'] = None
+    variables['Custom_Clearance_Time'] =dataslice['CustomClearance time (hours)'].item()
+    variables['Port_Airport_RailHandling_Time'] = dataslice['Port/Airport/Rail Handling time (hours)'].item()
+    variables['Extra_Time'] = dataslice['Extra Time'].item()
+    variables['Transit_Time'] = dataslice['Transit time (hours)'].item()
+    variables['Transit_Time_Type'] = dataslice['Transit_Time_Type'].item()
+    variables['Holiday_Table'] = dataslice['Holiday_Table'].item()
+    if np.isnan(variables['Holiday_Table']):
+        variables['Holiday_Table'] = []
+    return variables
 def pc_new(nid,dest):
     p_ = nid.copy()
     for i in dest:
@@ -71,7 +89,7 @@ def route(n,nid,date,ini,fin,volume,weight,order_value,finaldat=()):#finaldat is
                         Weight_Utilitation = weight/MaxWeightPerEquipment
                         Volume_Utilization = volume/container_size
                         total_time = variable['custom_clearance_time'] + variable['Port_Airport_RailHandling_Time'] + variable['extra_time'] + variable['transit_time']
-                        date_new = date - datetime.timedelta(hours=total_time) #subtracts time by some hours
+                        date_new = date
                         week_new = date_new.strftime('%Y-%V')#in the format YYYY-WW eg. 2023-06
                         finaldat = source,destination,travelelement,carrierelement,container_size,MaxWeightPerEquipment,VolumetricWeightConversionFactor,Weight_Utilitation,Volume_Utilization,order_value,total_time,date_new,week_new,
                         t.append((finaldat,))
@@ -91,7 +109,7 @@ def route(n,nid,date,ini,fin,volume,weight,order_value,finaldat=()):#finaldat is
                             Weight_Utilitation = weight/MaxWeightPerEquipment
                             Volume_Utilization = volume/container_size
                             total_time = variable['custom_clearance_time'] + variable['Port_Airport_RailHandling_Time'] + variable['extra_time'] + variable['transit_time']
-                            date_new = date - datetime.timedelta(hours=total_time)
+                            date_new = date
                             week_new = date_new.strftime('%Y-%V')
                             pt.append((source,destination,travelelement,carrierelement,container_size,MaxWeightPerEquipment,VolumetricWeightConversionFactor,Weight_Utilitation,Volume_Utilization,order_value,total_time,date_new,week_new))
                             for travelelement2 in travelmodes:
@@ -106,7 +124,7 @@ def route(n,nid,date,ini,fin,volume,weight,order_value,finaldat=()):#finaldat is
                                         Weight_Utilitation = weight/MaxWeightPerEquipment
                                         Volume_Utilization = volume/container_size
                                         total_time = variable2['custom_clearance_time'] + variable2['Port_Airport_RailHandling_Time'] + variable2['extra_time'] + variable2['transit_time']
-                                        date_new_2 = date_new - datetime.timedelta(hours=total_time)
+                                        date_new_2 = date_new
                                         week_new_2 = date_new_2.strftime('%Y-%V')
                                         pt.append((source,destination,travelelement2,carrierelement2,container_size,MaxWeightPerEquipment,VolumetricWeightConversionFactor,Weight_Utilitation,Volume_Utilization,order_value,total_time,date_new_2,week_new_2))
                                         t.append(tuple(pt[::-1]))#to change the order from last to first to first to last.
@@ -127,14 +145,123 @@ def route(n,nid,date,ini,fin,volume,weight,order_value,finaldat=()):#finaldat is
                             Weight_Utilitation = weight/MaxWeightPerEquipment
                             Volume_Utilization = volume/container_size
                             total_time = variable['custom_clearance_time'] + variable['Port_Airport_RailHandling_Time'] + variable['extra_time'] + variable['transit_time']
-                            date_new = date - datetime.timedelta(hours=total_time)
+                            date_new = date
                             week_new = date_new.strftime('%Y-%V')
                             pt.append((source,destination,travelelement,carrierelement,container_size,MaxWeightPerEquipment,VolumetricWeightConversionFactor,Weight_Utilitation,Volume_Utilization,order_value,total_time,date_new,week_new))
                             route(n-1,pc_new(nid.copy(),(intermediate,)),date_new,ini,intermediate,volume,weight,order_value,tuple(pt))
+def ETA(Routes_Dict):
+    from datetime import datetime, timedelta
+    class ShippingDatesCalculator:
+        def __init__(self,dataframe):
+            vars = variablefinder_for_ETA(dataframe['Source'],dataframe['Destination'],dataframe['Travel_Mode'],dataframe['Carrier'])
+            self.origin_location = dataframe['Source']
+            self.destination_location = dataframe['Destination']
+            self.delivery_date = dataframe['Date']
+            self.customs_time = vars['Custom_Clearance_Time']
+            self.extra_time = vars['Extra_Time']
+            self.port_time = vars['Port_Airport_RailHandling_Time']
+            self.transit_time = vars['Transit_Time']
+            self.transit_time_type = vars['Transit_Time_Type']
+            self.weekday_availability = vars['Weekday_Availability']
+            self.holiday_table = vars['Holiday_Table']
+        def is_holiday(self, date, location):
+            if location in self.holiday_table:
+                return date.strftime('%Y-%m-%d') in self.holiday_table[location]
+            return False
+    
+        def find_previous_non_holiday(self, date, location):
+            while self.is_holiday(date, location):
+                date -= timedelta(days=1)
+            return date
+    
+        def calculate_eta(self):
+            if self.is_holiday(self.delivery_date, self.destination_location):
+                eta = self.find_previous_non_holiday(self.delivery_date, self.destination_location)
+            else:
+                eta = self.delivery_date
+            return eta
+    
+        def calculate_initial_ship_date(self, eta):
+            if self.transit_time_type == 'B':
+                day_increment = timedelta(days=1)
+                while self.transit_time > 0:
+                    if eta.weekday() < 5:  # Monday to Friday
+                        self.transit_time -= 1
+                    eta -= day_increment
+                if not self.is_holiday(eta, self.origin_location):
+                    initial_ship_date = eta
+                else:
+                    initial_ship_date = self.find_previous_non_holiday(eta, self.origin_location)
+            elif self.transit_time_type == 'C':
+                initial_ship_date = eta - timedelta(days=self.transit_time)
+                initial_ship_date = self.find_previous_non_holiday(initial_ship_date, self.origin_location)
+            elif self.transit_time_type == 'S':
+                day_increment = timedelta(days=1)
+                while self.transit_time > 0:
+                    if eta.weekday() != 6:  # Not Sunday
+                        self.transit_time -= 1
+                    eta -= day_increment
+                initial_ship_date = self.find_previous_non_holiday(eta, self.origin_location)
+            else:
+                raise ValueError("Invalid transit time type.")
+            return initial_ship_date
+    
+        def calculate_plan_ship_date(self, initial_ship_date):
+            if self.weekday_availability is None:
+                # Consider pickupdate availability based on transit time type
+                current_date = initial_ship_date
+                while self.is_holiday(current_date, self.origin_location):
+                    current_date -= timedelta(days=1)
+                plan_ship_date = current_date
+            else:
+                current_date = initial_ship_date
+                while not self.weekday_availability[current_date.weekday()] or self.is_holiday(current_date, self.origin_location):
+                    current_date -= timedelta(days=1)
+                plan_ship_date = current_date
+            return plan_ship_date
+    
+        def calculate_ready_date(self, plan_ship_date):
+            current_date = plan_ship_date - timedelta(days=1)
+            remaining_time = self.customs_time + self.extra_time + self.port_time
+            while remaining_time > 0:
+                if current_date.weekday() < 5 and not self.is_holiday(current_date, self.origin_location):
+                    remaining_time -= 1
+                current_date -= timedelta(days=1)
+            ready_date = current_date + timedelta(days=1)
+            return ready_date
+    
+        def calculate_shipping_dates(self):
+            eta = self.calculate_eta()
+            initial_ship_date = self.calculate_initial_ship_date(eta)
+            plan_ship_date = self.calculate_plan_ship_date(initial_ship_date)
+            ready_date = self.calculate_ready_date(plan_ship_date)
+            return eta, initial_ship_date, plan_ship_date, ready_date
+    for Order_Index in Routes_Dict:
+        for Routes in Routes_Dict[Order_Index]:
+            Routes_Df_inv = pd.DataFrame(Routes[::-1],columns = ['Source','Destination','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
+            col_list = [None for i in range(len(Routes_Df_inv.index))]
+            Routes_Df_inv.insert(11,column = 'ETA',value = col_list)
+            Routes_Df_inv.insert(11,column = 'Plan_Ship_Date',value = col_list)
+            Routes_Df_inv.insert(11,column = 'Ready_Date',value = col_list)
+            for index in range(len(Routes_Df_inv.index)):
+                var_dates = ShippingDatesCalculator(Routes_Df_inv.loc[index])
+                eta, initial_ship_date, plan_ship_date, ready_date = var_dates.calculate_shipping_dates()
+                Routes_Df_inv.loc[index,'ETA'] = eta
+                Routes_Df_inv.loc[index,'Plan_Ship_Date'] = plan_ship_date
+                Routes_Df_inv.loc[index,'Ready_Date'] = ready_date
+                Routes_Df_inv.loc[index,'Total_Time'] = Routes_Df_inv.loc[index,'Date'] - ready_date
+                Routes_Df_inv.loc[index,'Week'] = ready_date.strftime('%Y-%V')
+                if index == len(Routes_Df_inv.index) - 1:
+                    continue
+                Routes_Df_inv.loc[index + 1,'Date'] = ready_date
+            new_tuple = tuple(Routes_Df_inv.itertuples(index=False,name=None))[::-1]
+            t.append(new_tuple)
+        Routes_Dict[Order_Index] = tuple(t)
+        t.clear()    
 def consolidation_0(zero_routes):#for only the routes having zero intermidiates, done in DemandPullAhead method
     if len(zero_routes) == 0:
         return#avoids error
-    one_stop_df = pd.DataFrame(zero_routes,columns=['Order','Source','Destination','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
+    one_stop_df = pd.DataFrame(zero_routes,columns=['Order','Source','Destination','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Ready_Date','Plan_Ship_Date','ETA','Date','Week'])
     one_sort = one_stop_df.sort_values('Date',ignore_index=True)
     current_row_index = 0
     pullahead = eval(one_sort.loc[current_row_index,'Order'])[-1]
@@ -214,7 +341,7 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
 def consoildation(orderno,route,routedictionary,consolidant):
     fol = False
     pt = consolidant.copy()
-    to_consolidate_df = pd.DataFrame(route,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])#dataframes are easy to work with
+    to_consolidate_df = pd.DataFrame(route,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Ready_Date','Plan_Ship_Date','ETA','Date','Week'])#dataframes are easy to work with
     for orderindex in routedictionary:
         if orderindex == orderno:
             continue
@@ -223,7 +350,7 @@ def consoildation(orderno,route,routedictionary,consolidant):
             if fol:#checks whether the order index has already used more than one time
                 fol = False
                 break
-            from_df = pd.DataFrame(root,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
+            from_df = pd.DataFrame(root,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Ready_Date','Plan_Ship_Date','ETA','Date','Week'])
             equaldf = to_consolidate_df.merge(from_df,on=['Source','Destination','Travel_Mode','Carrier','Week'],suffixes=('', '_DROP')).filter(regex='^(?!.*_DROP)')#finds commen rows to both dataframe
             for i in range(len(equaldf)):
                 fol = True
@@ -242,7 +369,7 @@ def consolidate_Routes(routes):
                 if not (route[0][:4]) in x:#( source,destination, travel mode, carrier)
                     one_stop[route[0][:4]] = []
                 one_stop[(route[0][:4])].append(('{}'.format((orderindex)),) + (route[0]))#('orderindex',....,...,..)
-            df = pd.DataFrame(route,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
+            df = pd.DataFrame(route,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Ready_Date','Plan_Ship_Date','ETA','Date','Week'])
             df['Consolidant'] = ''
             df['DemandPullAhead'] = False
             #used in checking whether done through DemandPullAhead method
@@ -262,9 +389,9 @@ def cost(route_dict_con,route_dict):
             costslice = ()
             for routeslice in routes:
                 if routeslice[-1]:
-                    routeslice_pd = pd.DataFrame((routeslice,),columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week','DemandPullAhead'])
+                    routeslice_pd = pd.DataFrame((routeslice,),columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Ready_Date','Plan_Ship_Date','ETA','Date','Week','DemandPullAhead'])
                 else:
-                    routeslice_pd = pd.DataFrame((routeslice,),columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week','Consolids','DemandPullAhead'])
+                    routeslice_pd = pd.DataFrame((routeslice,),columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Ready_Date','Plan_Ship_Date','ETA','Date','Week','Consolids','DemandPullAhead'])
                 try:
                     consolids = eval(routeslice_pd['Consolids'].item())
                 except:
@@ -272,7 +399,7 @@ def cost(route_dict_con,route_dict):
                 consolids_volumn_ut,consolids_weight_ut = 0,0
                 for consolid_i in range(len(consolids)):
                     consolidable = consolids[consolid_i]
-                    consolid_pd = pd.DataFrame(route_dict[consolidable[0]][consolidable[1]],columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
+                    consolid_pd = pd.DataFrame(route_dict[consolidable[0]][consolidable[1]],columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Ready_Date','Plan_Ship_Date','ETA','Date','Week'])
                     index = consolid_pd.index[(consolid_pd['Source'] == routeslice_pd['Source'].item()) & (consolid_pd['Destination'] == routeslice_pd['Destination'].item()) & (consolid_pd['Travel_Mode'] == routeslice_pd['Travel_Mode'].item()) & (consolid_pd['Carrier'] == routeslice_pd['Carrier'].item()) & (consolid_pd['Week'] == routeslice_pd['Week'].item())]
                     consolidslice = consolid_pd.loc[index]
                     consolids_volumn_ut += consolidslice['Volume_Utilization'].item()
@@ -300,7 +427,7 @@ def display(dictionary,routedict = {}):
     writer = pd.ExcelWriter(outputxl,engine='openpyxl')
     writer.book = book
     datafinal = pd.DataFrame(columns=['Orderno','Source','Destination','Volume','Weight','Legs','Intermidiates','Travel_Modes','Carriers','Time','Fixed Freight Cost','Port/Airport/Rail Handling Cost','Documentation Cost','Equipment Cost','Extra Cost','VariableFreightCost','Bunker/ Fuel Cost','Warehouse Cost','Transit Duty','Total Cost','OrderDate','DemandPullAhead'])
-    datafinal_route = pd.DataFrame(columns=['Orderno','Source','Destination','Volume','Weight','Legs','Intermidiates','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
+    datafinal_route = pd.DataFrame(columns=['Orderno','Source','Destination','Volume','Weight','Legs','Intermidiates','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Ready_Date','Plan_Ship_Date','ETA','Date','Week'])
     for orderindex in dictionary:
         for routes in dictionary[orderindex]:
             finaldat = {}
@@ -313,9 +440,9 @@ def display(dictionary,routedict = {}):
             finaldat['Legs'] = len(routes) - 1
             finaldat['Travel_Modes'] = ''
             finaldat['Carriers'] = ''
-            finaldat['Time'] = 0
+            finaldat['Time'] = datetime.timedelta()
             finaldat['OrderDate'] = routes[0][11]
-            finaldat['DemandPullAhead'] = routes[0][13]
+            finaldat['DemandPullAhead'] = routes[0][16]
             finaldat['Fixed Freight Cost'] = 0
             finaldat['Port/Airport/Rail Handling Cost'] = 0
             finaldat['Documentation Cost'] = 0
@@ -326,36 +453,36 @@ def display(dictionary,routedict = {}):
             finaldat['Warehouse Cost'] = 0
             finaldat['Transit Duty'] = 0
             if type(finaldat['DemandPullAhead']) == str:
-                finaldat['DemandPullAhead'] = routes[0][14]  
+                finaldat['DemandPullAhead'] = routes[0][17]  
                 for routeslice_i in range(0,len(routes)):
                     finaldat['Intermidiates'] += '--->' + routes[routeslice_i][1]
                     finaldat['Travel_Modes'] += routes[routeslice_i][2] + ','
                     finaldat['Carriers'] +=  routes[routeslice_i][3] + ',' 
                     finaldat['Time'] += routes[routeslice_i][10]
-                    finaldat['Fixed Freight Cost'] += routes[routeslice_i][15]
-                    finaldat['Port/Airport/Rail Handling Cost'] += routes[routeslice_i][16]
-                    finaldat['Documentation Cost'] += routes[routeslice_i][17]
-                    finaldat['Equipment Cost'] += routes[routeslice_i][18]
-                    finaldat['Extra Cost'] += routes[routeslice_i][19]
-                    finaldat['VariableFreightCost'] += routes[routeslice_i][20]
-                    finaldat['Bunker/ Fuel Cost'] += routes[routeslice_i][21]
-                    finaldat['Warehouse Cost'] += routes[routeslice_i][22]
-                    finaldat['Transit Duty'] += routes[routeslice_i][23]
+                    finaldat['Fixed Freight Cost'] += routes[routeslice_i][18]
+                    finaldat['Port/Airport/Rail Handling Cost'] += routes[routeslice_i][19]
+                    finaldat['Documentation Cost'] += routes[routeslice_i][20]
+                    finaldat['Equipment Cost'] += routes[routeslice_i][21]
+                    finaldat['Extra Cost'] += routes[routeslice_i][22]
+                    finaldat['VariableFreightCost'] += routes[routeslice_i][23]
+                    finaldat['Bunker/ Fuel Cost'] += routes[routeslice_i][24]
+                    finaldat['Warehouse Cost'] += routes[routeslice_i][25]
+                    finaldat['Transit Duty'] += routes[routeslice_i][26]
             else:
                 for routeslice_i in range(0,len(routes)):
                     finaldat['Intermidiates'] += '--->' + routes[routeslice_i][1]
                     finaldat['Travel_Modes'] +=   routes[routeslice_i][2] + ','
                     finaldat['Carriers'] +=   routes[routeslice_i][3] + ','
                     finaldat['Time'] = finaldat['Time'] + routes[routeslice_i][10]
-                    finaldat['Fixed Freight Cost'] += routes[routeslice_i][14]
-                    finaldat['Port/Airport/Rail Handling Cost'] += routes[routeslice_i][15]
-                    finaldat['Documentation Cost'] += routes[routeslice_i][16]
-                    finaldat['Equipment Cost'] += routes[routeslice_i][17]
-                    finaldat['Extra Cost'] += routes[routeslice_i][18]
-                    finaldat['VariableFreightCost'] += routes[routeslice_i][19]
-                    finaldat['Bunker/ Fuel Cost'] += routes[routeslice_i][20]
-                    finaldat['Warehouse Cost'] += routes[routeslice_i][21]
-                    finaldat['Transit Duty'] += routes[routeslice_i][22]
+                    finaldat['Fixed Freight Cost'] += routes[routeslice_i][17]
+                    finaldat['Port/Airport/Rail Handling Cost'] += routes[routeslice_i][18]
+                    finaldat['Documentation Cost'] += routes[routeslice_i][19]
+                    finaldat['Equipment Cost'] += routes[routeslice_i][20]
+                    finaldat['Extra Cost'] += routes[routeslice_i][21]
+                    finaldat['VariableFreightCost'] += routes[routeslice_i][22]
+                    finaldat['Bunker/ Fuel Cost'] += routes[routeslice_i][23]
+                    finaldat['Warehouse Cost'] += routes[routeslice_i][24]
+                    finaldat['Transit Duty'] += routes[routeslice_i][25]
             finaldat['Carriers'] = finaldat['Carriers'][:-1]
             finaldat['Travel_Modes'] = finaldat['Travel_Modes'][:-1] 
             finaldat['Total Cost'] = finaldat['Fixed Freight Cost'] + finaldat['Port/Airport/Rail Handling Cost'] + finaldat['Documentation Cost'] + finaldat['Equipment Cost'] + finaldat['Extra Cost'] + finaldat['VariableFreightCost'] + finaldat['Bunker/ Fuel Cost'] + finaldat['Warehouse Cost'] + finaldat['Transit Duty']
@@ -379,7 +506,11 @@ def display(dictionary,routedict = {}):
             finaldat_['Volume_Utilization'] = '{}'.format(route_[0][8])
             finaldat_['order_value'] = route_[0][9]
             finaldat_['Total_Time'] = route_[0][10]
-            finaldat_['OrderDate'] = route_[0][11]
+            finaldat_['Ready_Date'] = '{}'.format(route_[0][11])
+            finaldat_['Plan_Ship_Date'] = '{}'.format(route_[0][12])
+            finaldat_['ETA'] = '{}'.format(route_[0][13])
+            finaldat_['Date'] = '{}'.format(route_[0][14])
+            finaldat_['Week'] = route_[0][15]
             for routeslice_I in range(1,len(route_)):
                 finaldat_['Intermidiates'] += '--->' + route_[routeslice_I][1]
                 finaldat_['Travel_Mode'] += ',' + route_[routeslice_I][2]
@@ -389,6 +520,11 @@ def display(dictionary,routedict = {}):
                 finaldat_['VolumetricWeightConversionFactor'] += ',' +'{}'.format(route_[routeslice_I][6])
                 finaldat_['Weight_Utilitation'] += ',' +'{}'.format(route_[routeslice_I][7])
                 finaldat_['Volume_Utilization'] += ',' +'{}'.format(route_[routeslice_I][8])
+                finaldat_['Ready_Date'] += ', {}'.format(route_[routeslice_I][11])
+                finaldat_['Plan_Ship_Date'] += ', {}'.format(route_[routeslice_I][12])
+                finaldat_['ETA'] += ', {}'.format(route_[routeslice_I][13])
+                finaldat_['Date'] += ', {}'.format(route_[routeslice_I][14])
+                finaldat_['Week'] += ', {}'.format(route_[routeslice_I][15])
             datafinal_route.loc[len(datafinal_route.index)] = finaldat_
     datafinal_route.to_excel(writer,sheet_name='ROUTING')
     datafinal.to_excel(writer,sheet_name='cost')
@@ -405,6 +541,7 @@ for inputslice in order_data.values.tolist():
             week = None
     d_route[(inputslice[0],inputslice[3],inputslice[4],inputslice[5],inputslice[7],inputslice[8])] = tuple(t)#storing routes belonging to different orders with dictionary
     t.clear()
+ETA(d_route)
 # for i in d_route:
 #     print(i)
 #     for j in d_route[i]:
