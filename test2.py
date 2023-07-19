@@ -426,7 +426,7 @@ def cost(route_dict_con,route_dict):
 def display(dictionary,routedict = {}):
     writer = pd.ExcelWriter(outputxl,engine='openpyxl')
     writer.book = book
-    datafinal = pd.DataFrame(columns=['Orderno','Source','Destination','Volume','Weight','Legs','Intermidiates','Travel_Modes','Carriers','Time','Fixed Freight Cost','Port/Airport/Rail Handling Cost','Documentation Cost','Equipment Cost','Extra Cost','VariableFreightCost','Bunker/ Fuel Cost','Warehouse Cost','Transit Duty','Total Cost','OrderDate','DemandPullAhead'])
+    datafinal = pd.DataFrame(columns=['Orderno','Source','Destination','Volume','Weight','Legs','Intermidiates','Travel_Modes','Carriers','Time','Fixed Freight Cost','Port/Airport/Rail Handling Cost','Documentation Cost','Equipment Cost','Extra Cost','VariableFreightCost','Bunker/ Fuel Cost','Warehouse Cost','Transit Duty','Total Cost','OrderDate','ETA','Delivary_Date','DemandPullAhead'])
     datafinal_route = pd.DataFrame(columns=['Orderno','Source','Destination','Volume','Weight','Legs','Intermidiates','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Ready_Date','Plan_Ship_Date','ETA','Date','Week'])
     for orderindex in dictionary:
         for routes in dictionary[orderindex]:
@@ -442,6 +442,8 @@ def display(dictionary,routedict = {}):
             finaldat['Carriers'] = ''
             finaldat['Time'] = datetime.timedelta()
             finaldat['OrderDate'] = routes[0][11]
+            finaldat['ETA'] = routes[-1][13]
+            finaldat['Delivary_Date'] = orderindex[-2]
             finaldat['DemandPullAhead'] = routes[0][16]
             finaldat['Fixed Freight Cost'] = 0
             finaldat['Port/Airport/Rail Handling Cost'] = 0
