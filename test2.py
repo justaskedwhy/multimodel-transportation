@@ -79,19 +79,20 @@ def pc_new(nid,dest):
     for i in dest:
         p_.remove(i)
     return p_
-def route(n,nid,ini,fin,finaldat=()):#finaldat is in tuple because of the problems with list(local and globle variable problems)
+def route(n,nid,ini,fin,finaldat=pd.DataFrame(data = None,columns=['Source','Destination','Travel_Mode','Carrier'])):#finaldat is in tuple because of the problems with list(local and globle variable problems)
         if n == 0:
             for travelelement in travelmodes:
                 for carrierelement in carriermodes:
                     variable = variablefinder(travelelement,carrierelement,ini,fin)
                     if  variable['transit_time']:
-                        destination = fin
-                        source = ini
-                        finaldat = source,destination,travelelement,carrierelement
-                        t.append((finaldat,))
+                        finaldat['Source'] = ini,
+                        finaldat['Destination'] = fin
+                        finaldat['Travel_Mode'] = travelelement
+                        finaldat['Carrier'] = carrierelement
+                        t.append(finaldat.copy())
+            del finaldat
             return
         if n == 1:
-            pt = list(finaldat)
             for intermediate in nid:
                 for travelelement in travelmodes:
                     for carrierelement in carriermodes:
@@ -99,28 +100,27 @@ def route(n,nid,ini,fin,finaldat=()):#finaldat is in tuple because of the proble
                         if variable['transit_time']:
                             destination = fin
                             source = intermediate
-                            pt.append((source,destination,travelelement,carrierelement))
+                            finaldat = pd.concat([finaldat,pd.DataFrame(data = {finaldat.columns[i] : (source,destination,travelelement,carrierelement)[i] for i in range(len(finaldat.columns))},columns = finaldat.columns,index=[0])],ignore_index = True)
                             for travelelement2 in travelmodes:
                                 for carrierelement2 in carriermodes:
                                     variable2 = variablefinder(travelelement2,carrierelement2,ini,intermediate)
                                     if variable2['transit_time']:
                                         destination = intermediate
                                         source = ini
-                                        pt.append((source,destination,travelelement2,carrierelement2))
-                                        t.append(tuple(pt[::-1]))#to change the order from last to first to first to last.
-                                        pt.pop()#avoids duplications
-                            pt.pop()
+                                        finaldat = pd.concat([finaldat,pd.DataFrame(data = {finaldat.columns[i] : (source,destination,travelelement2,carrierelement2)[i] for i in range(len(finaldat.columns))},columns = finaldat.columns,index=[0])],ignore_index = True)
+                                        t.append(finaldat.sort_index(axis = 0,ascending = False,ignore_index=True).copy())#to change the order from last to first to first to last.
+                                        finaldat = finaldat.drop(len(finaldat.index) - 1)#avoids duplications
+                            finaldat = finaldat.drop(len(finaldat.index) - 1)
         elif n > 1 :
             for intermediate in nid:
                 for travelelement in travelmodes:
                     for carrierelement in carriermodes:
                         variable = variablefinder(travelelement,carrierelement,intermediate,fin)
                         if variable['transit_time']:
-                            pt = list(finaldat)
                             destination = fin
                             source = intermediate
-                            pt.append((source,destination,travelelement,carrierelement))
-                            route(n-1,pc_new(nid.copy(),(intermediate,)),ini,intermediate,tuple(pt))
+                            finaldat = pd.concat([finaldat,pd.DataFrame(data = {finaldat.columns[i] : (source,destination,travelelement,carrierelement)[i] for i in range(len(finaldat.columns))},columns = finaldat.columns,index=[0])],ignore_index = True)
+                            route(n-1,pc_new(nid.copy(),(intermediate,)),ini,intermediate,finaldat.copy())
 def ETA(Routes_Dict):
     from datetime import datetime, timedelta
     class ShippingDatesCalculator:
@@ -508,21 +508,29 @@ nodeindex = nodes.copy()
 #deleted here since it isn't needed (switched to pandas)
 for inputslice in order_data.values.tolist():
     for n in range(4):
-        route(n,pc_new(nodeindex,(inputslice[1],inputslice[2])),inputslice[1],inputslice[2],())
+        route(n,pc_new(nodeindex,(inputslice[1],inputslice[2])),inputslice[1],inputslice[2],pd.DataFrame(data = None,columns=['Source','Destination','Travel_Mode','Carrier']))
         try:
             week = inputslice[7].strftime('%Y-%V')
         except:
             week = None
     d_route[(inputslice[0],inputslice[3],inputslice[4],inputslice[5],inputslice[7],inputslice[8])] = tuple(t)#storing routes belonging to different orders with dictionary
     t.clear()
-ETA(d_route)
+# for i in d_route:
+#     print(i)
+#     for j in d_route[i]:
+#         print(j)
+#         print()
+#     print('\n\n\n')
+
+#ETA(d_route)
+
 # for i in d_route:
 #     print(i)
 #     for j in d_route[i]:
 #         for k in j:
 #             print(k)
 #         print('\n')
-consolidate_Routes(d_route)
+#consolidate_Routes(d_route)
 # for i in d_consoildate:
 #     print(i)
 #     for j in d_consoildate[i]:
@@ -530,5 +538,5 @@ consolidate_Routes(d_route)
 #             print(k)
 #         print('\n')
 #     print('\n')
-cost(d_consoildate,d_route)
-display(d_cost,d_route)
+#cost(d_consoildate,d_route)
+#display(d_cost,d_route)
