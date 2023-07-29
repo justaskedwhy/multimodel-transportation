@@ -20,6 +20,10 @@ t_consolidate_0 = []
 d_route = {}
 d_consoildate = {}
 d_cost = {}
+def routecall():
+    order_unique = order_data.drop_duplicates(subset=['Ship From','Ship To'],keep='first')
+    for n in range(4):
+        pass
 def calvalue(route_info,volume_ut,weight_ut,total_ut,ratio,order_value):
     #add methods to it with different methods segrigated into different sections
     dict = {}
