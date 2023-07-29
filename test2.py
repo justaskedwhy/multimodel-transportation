@@ -20,7 +20,7 @@ t_consolidate_0 = []
 d_route = {}
 d_consoildate = {}
 d_cost = {}
-def routecall():
+def valueinjection():
     order_unique = order_data.drop_duplicates(subset=['Ship From','Ship To'],keep='first')
     for n in range(4):
         pass
@@ -79,7 +79,7 @@ def pc_new(nid,dest):
     for i in dest:
         p_.remove(i)
     return p_
-def route(n,nid,date,ini,fin,volume,weight,order_value,finaldat=()):#finaldat is in tuple because of the problems with list(local and globle variable problems)
+def route(n,nid,ini,fin,finaldat=()):#finaldat is in tuple because of the problems with list(local and globle variable problems)
         if n == 0:
             for travelelement in travelmodes:
                 for carrierelement in carriermodes:
@@ -87,15 +87,7 @@ def route(n,nid,date,ini,fin,volume,weight,order_value,finaldat=()):#finaldat is
                     if  variable['transit_time']:
                         destination = fin
                         source = ini
-                        container_size = variable['MaxVolumePerEquipment']
-                        MaxWeightPerEquipment = variable['MaxWeightPerEquipment']
-                        VolumetricWeightConversionFactor = variable['VolumetricWeightConversionFactor']
-                        Weight_Utilitation = weight/MaxWeightPerEquipment
-                        Volume_Utilization = volume/container_size
-                        total_time = variable['custom_clearance_time'] + variable['Port_Airport_RailHandling_Time'] + variable['extra_time'] + variable['transit_time']
-                        date_new = date
-                        week_new = date_new.strftime('%Y-%V')#in the format YYYY-WW eg. 2023-06
-                        finaldat = source,destination,travelelement,carrierelement,container_size,MaxWeightPerEquipment,VolumetricWeightConversionFactor,Weight_Utilitation,Volume_Utilization,order_value,total_time,date_new,week_new,
+                        finaldat = source,destination,travelelement,carrierelement
                         t.append((finaldat,))
             return
         if n == 1:
@@ -107,30 +99,14 @@ def route(n,nid,date,ini,fin,volume,weight,order_value,finaldat=()):#finaldat is
                         if variable['transit_time']:
                             destination = fin
                             source = intermediate
-                            container_size = variable['MaxVolumePerEquipment']
-                            MaxWeightPerEquipment = variable['MaxWeightPerEquipment']
-                            VolumetricWeightConversionFactor = variable['VolumetricWeightConversionFactor']
-                            Weight_Utilitation = weight/MaxWeightPerEquipment
-                            Volume_Utilization = volume/container_size
-                            total_time = variable['custom_clearance_time'] + variable['Port_Airport_RailHandling_Time'] + variable['extra_time'] + variable['transit_time']
-                            date_new = date
-                            week_new = date_new.strftime('%Y-%V')
-                            pt.append((source,destination,travelelement,carrierelement,container_size,MaxWeightPerEquipment,VolumetricWeightConversionFactor,Weight_Utilitation,Volume_Utilization,order_value,total_time,date_new,week_new))
+                            pt.append((source,destination,travelelement,carrierelement))
                             for travelelement2 in travelmodes:
                                 for carrierelement2 in carriermodes:
                                     variable2 = variablefinder(travelelement2,carrierelement2,ini,intermediate)
                                     if variable2['transit_time']:
                                         destination = intermediate
                                         source = ini
-                                        container_size = variable2['MaxVolumePerEquipment']
-                                        MaxWeightPerEquipment = variable['MaxWeightPerEquipment']
-                                        VolumetricWeightConversionFactor = variable['VolumetricWeightConversionFactor']
-                                        Weight_Utilitation = weight/MaxWeightPerEquipment
-                                        Volume_Utilization = volume/container_size
-                                        total_time = variable2['custom_clearance_time'] + variable2['Port_Airport_RailHandling_Time'] + variable2['extra_time'] + variable2['transit_time']
-                                        date_new_2 = date_new
-                                        week_new_2 = date_new_2.strftime('%Y-%V')
-                                        pt.append((source,destination,travelelement2,carrierelement2,container_size,MaxWeightPerEquipment,VolumetricWeightConversionFactor,Weight_Utilitation,Volume_Utilization,order_value,total_time,date_new_2,week_new_2))
+                                        pt.append((source,destination,travelelement2,carrierelement2))
                                         t.append(tuple(pt[::-1]))#to change the order from last to first to first to last.
                                         pt.pop()#avoids duplications
                             pt.pop()
@@ -143,16 +119,8 @@ def route(n,nid,date,ini,fin,volume,weight,order_value,finaldat=()):#finaldat is
                             pt = list(finaldat)
                             destination = fin
                             source = intermediate
-                            container_size = variable['MaxVolumePerEquipment']
-                            MaxWeightPerEquipment = variable['MaxWeightPerEquipment']
-                            VolumetricWeightConversionFactor = variable['VolumetricWeightConversionFactor']
-                            Weight_Utilitation = weight/MaxWeightPerEquipment
-                            Volume_Utilization = volume/container_size
-                            total_time = variable['custom_clearance_time'] + variable['Port_Airport_RailHandling_Time'] + variable['extra_time'] + variable['transit_time']
-                            date_new = date
-                            week_new = date_new.strftime('%Y-%V')
-                            pt.append((source,destination,travelelement,carrierelement,container_size,MaxWeightPerEquipment,VolumetricWeightConversionFactor,Weight_Utilitation,Volume_Utilization,order_value,total_time,date_new,week_new))
-                            route(n-1,pc_new(nid.copy(),(intermediate,)),date_new,ini,intermediate,volume,weight,order_value,tuple(pt))
+                            pt.append((source,destination,travelelement,carrierelement))
+                            route(n-1,pc_new(nid.copy(),(intermediate,)),ini,intermediate,tuple(pt))
 def ETA(Routes_Dict):
     from datetime import datetime, timedelta
     class ShippingDatesCalculator:
@@ -540,7 +508,7 @@ nodeindex = nodes.copy()
 #deleted here since it isn't needed (switched to pandas)
 for inputslice in order_data.values.tolist():
     for n in range(4):
-        route(n,pc_new(nodeindex,(inputslice[1],inputslice[2])),inputslice[7],inputslice[1],inputslice[2],inputslice[5],inputslice[4],inputslice[3],())
+        route(n,pc_new(nodeindex,(inputslice[1],inputslice[2])),inputslice[1],inputslice[2],())
         try:
             week = inputslice[7].strftime('%Y-%V')
         except:
