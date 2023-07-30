@@ -17,13 +17,18 @@ carriermodes = data['Carrier'].unique().tolist()
 t = []
 t_consolidate = []
 t_consolidate_0 = []
+d_route_unique = {}
 d_route = {}
 d_consoildate = {}
 d_cost = {}
-def valueinjection():
+def routeunique():
+    nodeindex = nodes.copy()
     order_unique = order_data.drop_duplicates(subset=['Ship From','Ship To'],keep='first')
-    for n in range(4):
-        pass
+    for uniqueslice in order_unique.to_dict(orient='records'):
+        for n in range(4):
+            route(n,pc_new(nodeindex,(uniqueslice['Ship From'],uniqueslice['Ship To'])),uniqueslice['Ship From'],uniqueslice['Ship To'],finaldat = pd.DataFrame(data = None,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor']))
+        d_route_unique[(uniqueslice['Ship From'],uniqueslice['Ship To'])] = tuple(t) 
+        t.clear()
 def calvalue(route_info,volume_ut,weight_ut,total_ut,ratio,order_value):
     #add methods to it with different methods segrigated into different sections
     dict = {}
@@ -79,7 +84,7 @@ def pc_new(nid,dest):
     for i in dest:
         p_.remove(i)
     return p_
-def route(n,nid,ini,fin,finaldat=pd.DataFrame(data = None,columns=['Source','Destination','Travel_Mode','Carrier'])):#finaldat is in tuple because of the problems with list(local and globle variable problems)
+def route(n,nid,ini,fin,finaldat=pd.DataFrame(data = None,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor'])):#finaldat is in tuple because of the problems with list(local and globle variable problems)
         if n == 0:
             for travelelement in travelmodes:
                 for carrierelement in carriermodes:
@@ -89,8 +94,10 @@ def route(n,nid,ini,fin,finaldat=pd.DataFrame(data = None,columns=['Source','Des
                         finaldat['Destination'] = fin
                         finaldat['Travel_Mode'] = travelelement
                         finaldat['Carrier'] = carrierelement
+                        finaldat['Container_Size'] = variable['MaxVolumePerEquipment']
+                        finaldat['MaxWeightPerEquipment'] = variable['MaxWeightPerEquipment']
+                        finaldat['VolumetricWeightConversionFactor'] = variable['VolumetricWeightConversionFactor']
                         t.append(finaldat.copy())
-            del finaldat
             return
         if n == 1:
             for intermediate in nid:
@@ -100,14 +107,14 @@ def route(n,nid,ini,fin,finaldat=pd.DataFrame(data = None,columns=['Source','Des
                         if variable['transit_time']:
                             destination = fin
                             source = intermediate
-                            finaldat = pd.concat([finaldat,pd.DataFrame(data = {finaldat.columns[i] : (source,destination,travelelement,carrierelement)[i] for i in range(len(finaldat.columns))},columns = finaldat.columns,index=[0])],ignore_index = True)
+                            finaldat = pd.concat([finaldat,pd.DataFrame(data = {finaldat.columns[i] : (source,destination,travelelement,carrierelement,variable['MaxVolumePerEquipment'],variable['MaxWeightPerEquipment'],variable['VolumetricWeightConversionFactor'])[i] if i < len(finaldat.columns) - 1 else None for i in range(len(finaldat.columns))},columns = finaldat.columns,index=[0])],ignore_index = True)
                             for travelelement2 in travelmodes:
                                 for carrierelement2 in carriermodes:
                                     variable2 = variablefinder(travelelement2,carrierelement2,ini,intermediate)
                                     if variable2['transit_time']:
                                         destination = intermediate
                                         source = ini
-                                        finaldat = pd.concat([finaldat,pd.DataFrame(data = {finaldat.columns[i] : (source,destination,travelelement2,carrierelement2)[i] for i in range(len(finaldat.columns))},columns = finaldat.columns,index=[0])],ignore_index = True)
+                                        finaldat = pd.concat([finaldat,pd.DataFrame(data = {finaldat.columns[i] : (source,destination,travelelement2,carrierelement2,variable2['MaxVolumePerEquipment'],variable2['MaxWeightPerEquipment'],variable2['VolumetricWeightConversionFactor'])[i] if i < len(finaldat.columns) - 1 else None for i in range(len(finaldat.columns))},columns = finaldat.columns,index=[0])],ignore_index = True)
                                         t.append(finaldat.sort_index(axis = 0,ascending = False,ignore_index=True).copy())#to change the order from last to first to first to last.
                                         finaldat = finaldat.drop(len(finaldat.index) - 1)#avoids duplications
                             finaldat = finaldat.drop(len(finaldat.index) - 1)
@@ -119,7 +126,7 @@ def route(n,nid,ini,fin,finaldat=pd.DataFrame(data = None,columns=['Source','Des
                         if variable['transit_time']:
                             destination = fin
                             source = intermediate
-                            finaldat = pd.concat([finaldat,pd.DataFrame(data = {finaldat.columns[i] : (source,destination,travelelement,carrierelement)[i] for i in range(len(finaldat.columns))},columns = finaldat.columns,index=[0])],ignore_index = True)
+                            finaldat = pd.concat([finaldat,pd.DataFrame(data = {finaldat.columns[i] : (source,destination,travelelement,carrierelement,variable['MaxVolumePerEquipment'],variable['MaxWeightPerEquipment'],variable['VolumetricWeightConversionFactor'])[i] if i < len(finaldat.columns) - 1 else None for i in range(len(finaldat.columns))},columns = finaldat.columns,index=[0])],ignore_index = True)
                             route(n-1,pc_new(nid.copy(),(intermediate,)),ini,intermediate,finaldat.copy())
 def ETA(Routes_Dict):
     from datetime import datetime, timedelta
@@ -505,24 +512,28 @@ def display(dictionary,routedict = {}):
     writer.close()
 #................................................................................
 nodeindex = nodes.copy()
-#deleted here since it isn't needed (switched to pandas)
-for inputslice in order_data.values.tolist():
-    for n in range(4):
-        route(n,pc_new(nodeindex,(inputslice[1],inputslice[2])),inputslice[1],inputslice[2],pd.DataFrame(data = None,columns=['Source','Destination','Travel_Mode','Carrier']))
-        try:
-            week = inputslice[7].strftime('%Y-%V')
-        except:
-            week = None
-    d_route[(inputslice[0],inputslice[3],inputslice[4],inputslice[5],inputslice[7],inputslice[8])] = tuple(t)#storing routes belonging to different orders with dictionary
-    t.clear()
-# for i in d_route:
+routeunique()
+# for i in d_route_unique:
 #     print(i)
-#     for j in d_route[i]:
+#     for j in d_route_unique[i]:
 #         print(j)
 #         print()
 #     print('\n\n\n')
+for inputslice in order_data.to_dict(orient='records'):
+    worktuple = d_route_unique[(inputslice['Ship From'],inputslice['Ship To'])]
+    for datframe in worktuple:
+        rows = len(datframe.index)#'Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'
+        datframe['Weight_Utilitation'] = inputslice['Weight (KG)']/datframe['MaxWeightPerEquipment']
+        datframe['Volume_Utilization'] = inputslice['Volume']/datframe['Container_Size']
+        datframe['order_value'] = [inputslice['Order Value'] for i in range(rows)]
+        datframe['Total_Time'] = [0 for i in range(rows)]
+        datframe['Date'] = [inputslice['Required Delivery Date'] for i in range(rows)]
+        datframe['Week'] = [datframe['Date'].to_list()[i].strftime('%Y-%V') for i in range(rows)]
+        t.append(tuple(datframe.itertuples(index=False,name=None)))
+    d_route[(inputslice['Order Number'],inputslice['Order Value'],inputslice['Weight (KG)'],inputslice['Volume'],inputslice['Required Delivery Date'],inputslice['PullAheadDays'])] = tuple(t)
+    t.clear()
 
-#ETA(d_route)
+ETA(d_route)
 
 # for i in d_route:
 #     print(i)
@@ -530,7 +541,7 @@ for inputslice in order_data.values.tolist():
 #         for k in j:
 #             print(k)
 #         print('\n')
-#consolidate_Routes(d_route)
+consolidate_Routes(d_route)
 # for i in d_consoildate:
 #     print(i)
 #     for j in d_consoildate[i]:
@@ -538,5 +549,5 @@ for inputslice in order_data.values.tolist():
 #             print(k)
 #         print('\n')
 #     print('\n')
-#cost(d_consoildate,d_route)
-#display(d_cost,d_route)
+cost(d_consoildate,d_route)
+display(d_cost,d_route)
