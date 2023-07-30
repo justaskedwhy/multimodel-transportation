@@ -25,7 +25,7 @@ def routeunique():
     nodeindex = nodes.copy()
     order_unique = order_data.drop_duplicates(subset=['Ship From','Ship To'],keep='first')
     for uniqueslice in order_unique.to_dict(orient='records'):
-        for n in range(4):
+        for n in range(5):
             route(n,pc_new(nodeindex,(uniqueslice['Ship From'],uniqueslice['Ship To'])),uniqueslice['Ship From'],uniqueslice['Ship To'],finaldat = pd.DataFrame(data = None,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor']))
         d_route_unique[(uniqueslice['Ship From'],uniqueslice['Ship To'])] = tuple(t) 
         t.clear()
@@ -128,6 +128,7 @@ def route(n,nid,ini,fin,finaldat=pd.DataFrame(data = None,columns=['Source','Des
                             source = intermediate
                             finaldat = pd.concat([finaldat,pd.DataFrame(data = {finaldat.columns[i] : (source,destination,travelelement,carrierelement,variable['MaxVolumePerEquipment'],variable['MaxWeightPerEquipment'],variable['VolumetricWeightConversionFactor'])[i] if i < len(finaldat.columns) - 1 else None for i in range(len(finaldat.columns))},columns = finaldat.columns,index=[0])],ignore_index = True)
                             route(n-1,pc_new(nid.copy(),(intermediate,)),ini,intermediate,finaldat.copy())
+                            finaldat = finaldat.drop(len(finaldat.index) - 1)
 def ETA(Routes_Dict):
     from datetime import datetime, timedelta
     class ShippingDatesCalculator:
@@ -513,12 +514,12 @@ def display(dictionary,routedict = {}):
 #................................................................................
 nodeindex = nodes.copy()
 routeunique()
-# for i in d_route_unique:
-#     print(i)
-#     for j in d_route_unique[i]:
-#         print(j)
-#         print()
-#     print('\n\n\n')
+for i in d_route_unique:
+    print(i)
+    for j in d_route_unique[i]:
+        print(j)
+        print()
+    print('\n\n\n')
 for inputslice in order_data.to_dict(orient='records'):
     worktuple = d_route_unique[(inputslice['Ship From'],inputslice['Ship To'])]
     for datframe in worktuple:
