@@ -8,7 +8,7 @@ import numpy as np
 Tk().withdraw() 
 inputxl = askopenfilename(title='input')  
 outputxl  = askopenfilename(title = 'output')
-book = ''#load_workbook(r'{}'.format(outputxl))
+book = load_workbook(r'{}'.format(outputxl))
 data = pd.read_excel(inputxl,sheet_name='Route Information')
 order_data = pd.read_excel(inputxl,sheet_name='Order Information')
 nodes = pd.unique(data[['Source','Destination']].values.ravel('k')).tolist()
@@ -522,41 +522,41 @@ def display(dictionary,routedict = {}):
 #................................................................................
 nodeindex = nodes.copy()
 routeunique()
-for i in d_route_unique:
-    print(i)
-    for j in d_route_unique[i]:
-        print(j)
-        print()
-    print('\n\n\n')
-# for inputslice in order_data.to_dict(orient='records'):
-#     worktuple = d_route_unique[(inputslice['Ship From'],inputslice['Ship To'])]
-#     for datframe in worktuple:
-#         rows = len(datframe.index)#'Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'
-#         datframe['Weight_Utilitation'] = inputslice['Weight (KG)']/datframe['MaxWeightPerEquipment']
-#         datframe['Volume_Utilization'] = inputslice['Volume']/datframe['Container_Size']
-#         datframe['order_value'] = [inputslice['Order Value'] for i in range(rows)]
-#         datframe['Total_Time'] = [0 for i in range(rows)]
-#         datframe['Date'] = [inputslice['Required Delivery Date'] for i in range(rows)]
-#         datframe['Week'] = [datframe['Date'].to_list()[i].strftime('%Y-%V') for i in range(rows)]
-#         t.append(tuple(datframe.itertuples(index=False,name=None)))
-#     d_route[(inputslice['Order Number'],inputslice['Order Value'],inputslice['Weight (KG)'],inputslice['Volume'],inputslice['Required Delivery Date'],inputslice['PullAheadDays'])] = tuple(t)
-#     t.clear()
+# for i in d_route_unique:
+#     print(i)
+#     for j in d_route_unique[i]:
+#         print(j)
+#         print()
+#     print('\n\n\n')
+for inputslice in order_data.to_dict(orient='records'):
+    worktuple = d_route_unique[(inputslice['Ship From'],inputslice['Ship To'])]
+    for datframe in worktuple:
+        rows = len(datframe.index)#'Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'
+        datframe['Weight_Utilitation'] = inputslice['Weight (KG)']/datframe['MaxWeightPerEquipment']
+        datframe['Volume_Utilization'] = inputslice['Volume']/datframe['Container_Size']
+        datframe['order_value'] = [inputslice['Order Value'] for i in range(rows)]
+        datframe['Total_Time'] = [0 for i in range(rows)]
+        datframe['Date'] = [inputslice['Required Delivery Date'] for i in range(rows)]
+        datframe['Week'] = [datframe['Date'].to_list()[i].strftime('%Y-%V') for i in range(rows)]
+        t.append(tuple(datframe.itertuples(index=False,name=None)))
+    d_route[(inputslice['Order Number'],inputslice['Order Value'],inputslice['Weight (KG)'],inputslice['Volume'],inputslice['Required Delivery Date'],inputslice['PullAheadDays'])] = tuple(t)
+    t.clear()
 
-# ETA(d_route)
+ETA(d_route)
 
-# # for i in d_route:
-# #     print(i)
-# #     for j in d_route[i]:
-# #         for k in j:
-# #             print(k)
-# #         print('\n')
-# consolidate_Routes(d_route)
-# # for i in d_consoildate:
-# #     print(i)
-# #     for j in d_consoildate[i]:
-# #         for k in j:
-# #             print(k)
-# #         print('\n')
-# #     print('\n')
-# cost(d_consoildate,d_route)
-# display(d_cost,d_route)
+# for i in d_route:
+#     print(i)
+#     for j in d_route[i]:
+#         for k in j:
+#             print(k)
+#         print('\n')
+consolidate_Routes(d_route)
+# for i in d_consoildate:
+#     print(i)
+#     for j in d_consoildate[i]:
+#         for k in j:
+#             print(k)
+#         print('\n')
+#     print('\n')
+cost(d_consoildate,d_route)
+display(d_cost,d_route)
