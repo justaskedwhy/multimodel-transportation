@@ -32,7 +32,10 @@ def routeunique() -> pd.DataFrame:
     for uniqueslice in order_unique.to_dict(orient='records'):
         for n in range(5):
             route(n,pc_new(nodeindex,(uniqueslice['Ship From'],uniqueslice['Ship To'])),uniqueslice['Ship From'],uniqueslice['Ship To'],finaldat = pd.DataFrame(data = None,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor']))
-        d_route_unique[(uniqueslice['Ship From'],uniqueslice['Ship To'])] = tuple(t) 
+        temp_list = []
+        for data_frame in t:
+            temp_list.extend(expand_route(data_frame,sdtc,[data_frame]))
+        d_route_unique[(uniqueslice['Ship From'],uniqueslice['Ship To'])] = tuple(temp_list) 
         t.clear()
 def calvalue(route_info,volume_ut,weight_ut,total_ut,ratio,order_value):
     #add methods to it with different methods segrigated into different sections
@@ -89,8 +92,26 @@ def pc_new(nid,dest):
     for i in dest:
         p_.remove(i)
     return p_
-def expand_route(initial_frame : pd.DataFrame , travel_carrier_dict : dict ,frame_list : list = []):
-    pass
+def expand_route(initial_frame : pd.DataFrame , travel_carrier_dict : dict ,frame_list : list):
+    for index in range(len(initial_frame.index)):
+        Source = initial_frame.loc[index,'Source']
+        Destination = initial_frame.loc[index,'Destination']
+        size = len(frame_list)
+        for frames_index in range(len(frame_list)):
+            for travel_mode,carrier in travel_carrier_dict[(Source,Destination)]:
+                variables = variablefinder(travel_mode,carrier,Source,Destination)
+                Container_Size = variables['MaxVolumePerEquipment']  
+                MaxWeightPerEquipment = variables['MaxWeightPerEquipment'] 
+                VolumetricWeightConversionFactor = variables['VolumetricWeightConversionFactor'] 
+                to_append_df = frame_list[frames_index].copy()
+                to_append_df.loc[index,'Travel_Mode'] = travel_mode
+                to_append_df.loc[index,'Carrier'] = carrier
+                to_append_df.loc[index,'Container_Size'] = Container_Size
+                to_append_df.loc[index,'MaxVolumePerEquipment'] = MaxWeightPerEquipment
+                to_append_df.loc[index,'VolumetricWeightConversionFactor'] = VolumetricWeightConversionFactor
+                frame_list.append(to_append_df.copy())
+        del frame_list[:size]
+    return frame_list
 def route(n : int,nid : list,ini : str ,fin :str ,finaldat=pd.DataFrame(data = None,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor'])) -> pd.DataFrame:#finaldat is in tuple because of the problems with list(local and globle variable problems)
         if n == 0:
             if  (ini,fin) in sdtc.keys():
