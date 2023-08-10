@@ -107,7 +107,7 @@ def expand_route(initial_frame : pd.DataFrame , travel_carrier_dict : dict ,fram
                 to_append_df.loc[index,'Travel_Mode'] = travel_mode
                 to_append_df.loc[index,'Carrier'] = carrier
                 to_append_df.loc[index,'Container_Size'] = Container_Size
-                to_append_df.loc[index,'MaxVolumePerEquipment'] = MaxWeightPerEquipment
+                to_append_df.loc[index,'MaxWeightPerEquipment'] = MaxWeightPerEquipment
                 to_append_df.loc[index,'VolumetricWeightConversionFactor'] = VolumetricWeightConversionFactor
                 frame_list.append(to_append_df.copy())
         del frame_list[:size]
