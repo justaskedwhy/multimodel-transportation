@@ -129,6 +129,7 @@ def route(n : int,nid : list,ini : str ,fin :str ,finaldat=pd.DataFrame(data = N
                     source = ini
                     finaldat = pd.concat([finaldat,pd.DataFrame(data = {finaldat.columns[i] : (source,destination)[i] if i < 2 else None for i in range(len(finaldat.columns))},columns = finaldat.columns,index=[0])],ignore_index = True)
                     t.append(finaldat.sort_index(axis = 0,ascending = False,ignore_index=True).copy())#to change the order from last to first to first to last.
+                    finaldat = finaldat.drop([len(finaldat.index) - 2,len(finaldat.index) - 1])
         elif n > 1 :
             for intermediate in nid:
                 if (intermediate,fin) in sdtc.keys():
