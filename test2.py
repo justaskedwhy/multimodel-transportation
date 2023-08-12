@@ -11,9 +11,7 @@ outputxl  = askopenfilename(title = 'output')
 book = load_workbook(r'{}'.format(outputxl))
 data = pd.read_excel(inputxl,sheet_name='Route Information')
 order_data = pd.read_excel(inputxl,sheet_name='Order Information')
-nodes = pd.unique(data[['Source','Destination']].values.ravel('k')).tolist()
-travelmodes = data['Travel Mode'].unique().tolist()   #the excel has some changes to the names of the columns
-carriermodes = data['Carrier'].unique().tolist()
+nodes = list(set(data['Source'].unique()).intersection(set(data['Destination'].unique())))
 t = []
 t_consolidate = []
 t_consolidate_0 = []
@@ -87,9 +85,11 @@ def variablefinder_for_ETA(initial,final,travelmode,carrier):
     if np.isnan(variables['Holiday_Table']):
         variables['Holiday_Table'] = []
     return variables
-def pc_new(nid,dest):
+def pc_new(nid : list,dest : tuple) -> list:
     p_ = nid.copy()
     for i in dest:
+        if i not in p_:
+            continue
         p_.remove(i)
     return p_
 def expand_route(initial_frame : pd.DataFrame , travel_carrier_dict : dict ,frame_list : list):
