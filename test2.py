@@ -5,6 +5,7 @@ import datetime
 from pandas import Timestamp
 import pandas as pd
 import numpy as np
+from copy import deepcopy
 Tk().withdraw() 
 inputxl = askopenfilename(title='input')  
 outputxl  = askopenfilename(title = 'output')
@@ -24,7 +25,10 @@ data_unique = data.drop_duplicates(subset=['Source','Destination'],ignore_index=
 for dataslice in data_unique.to_dict(orient='records'):
     dataspec = data.loc[(data['Source'] == dataslice['Source']) & (data['Destination'] == dataslice['Destination']) ]
     sdtc[dataslice['Source'],dataslice['Destination']] = tuple(dataspec.get(['Travel Mode','Carrier']).itertuples(index = False,name = None))
-def routeunique() -> pd.DataFrame:
+def connections(dframe : pd.DataFrame,val : str) -> set:
+        data_node = dframe.loc[dframe['Source'] == val]
+        return {*tuple(i[0] for i in data_node.get(['Destination']).itertuples(index = False,name = None))}
+def routeunique() -> pd.DataFrame:   
     nodeindex = nodes.copy()
     order_unique = order_data.drop_duplicates(subset=['Ship From','Ship To'],keep='first')
     for uniqueslice in order_unique.to_dict(orient='records'):
@@ -112,32 +116,28 @@ def expand_route(initial_frame : pd.DataFrame , travel_carrier_dict : dict ,fram
                 frame_list.append(to_append_df.copy())
         del frame_list[:size]
     return frame_list
-def route(n : int,nid : list,ini : str ,fin :str ,finaldat=pd.DataFrame(data = None,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor'])) -> pd.DataFrame:#finaldat is in tuple because of the problems with list(local and globle variable problems)
+def route(n : int,nid : list,ini : str ,fin :str ,finaldat=pd.DataFrame(data = None,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor'])) -> pd.DataFrame:
+        paths = [ [ini,i] for i in connections(data,ini) ]
+        new_paths = []
+        for i in range(n):
+            new_paths.clear()
+            for path in paths:
+                if not len(connections(data,path[-1]) - set(path)) or (i == n - 1 and fin not in connections(data,path[-1])):
+                    continue
+                for node in connections(data,path[-1]) - set(path):
+                    path.append(node)
+                    if i == n - 1:
+                        path.append(fin)
+                    new_paths.append(path)
+                    path.pop()
+            paths = new_paths.copy()
         if n == 0:
-            if  (ini,fin) in sdtc.keys():
-                finaldat['Source'] = ini,
-                finaldat['Destination'] = fin
-                t.append(finaldat.copy())
-            return
-        if n == 1:
-            for intermediate in nid:
-                if (intermediate,fin) in sdtc.keys() and (ini,intermediate) in sdtc.keys():
-                    destination = fin
-                    source = intermediate
-                    finaldat = pd.concat([finaldat,pd.DataFrame(data = {finaldat.columns[i] : (source,destination)[i] if i < 2 else None for i in range(len(finaldat.columns))},columns = finaldat.columns,index=[0])],ignore_index = True)
-                    destination = intermediate
-                    source = ini
-                    finaldat = pd.concat([finaldat,pd.DataFrame(data = {finaldat.columns[i] : (source,destination)[i] if i < 2 else None for i in range(len(finaldat.columns))},columns = finaldat.columns,index=[0])],ignore_index = True)
-                    t.append(finaldat.sort_index(axis = 0,ascending = False,ignore_index=True).copy())#to change the order from last to first to first to last.
-                    finaldat = finaldat.drop([len(finaldat.index) - 2,len(finaldat.index) - 1])
-        elif n > 1 :
-            for intermediate in nid:
-                if (intermediate,fin) in sdtc.keys():
-                    destination = fin
-                    source = intermediate
-                    finaldat = pd.concat([finaldat,pd.DataFrame(data = {finaldat.columns[i] : (source,destination)[i] if i < 2 else None for i in range(len(finaldat.columns))},columns = finaldat.columns,index=[0])],ignore_index = True)
-                    route(n-1,pc_new(nid.copy(),(intermediate,)),ini,intermediate,finaldat.copy())
-                    finaldat = finaldat.drop(len(finaldat.index) - 1)
+            paths = [[ini,fin]] if [ini,fin] in paths else []
+        for path in paths:
+            for index in range(len(path) - 1):
+                finaldat = pd.concat([finaldat,pd.DataFrame(data = {finaldat.columns[i] : (path[index],[path[index + 1]])[i] if i < 2 else None for i in range(len(finaldat.columns))},columns = finaldat.columns,index=[0])],ignore_index = True)
+            t.append(finaldat)
+            finaldat = pd.DataFrame(columns= finaldat.columns)
 def ETA(Routes_Dict):
     from datetime import datetime, timedelta
     class ShippingDatesCalculator:
@@ -413,8 +413,6 @@ def cost(route_dict_con,route_dict):
             cost_tuple.append(costslice)
         d_cost[orderindex] = tuple(cost_tuple)
 def display(dictionary,routedict = {}):
-    writer = pd.ExcelWriter(outputxl,engine='openpyxl')
-    writer.book = book
     datafinal = pd.DataFrame(columns=['Orderno','Source','Destination','Volume','Weight','Legs','Intermidiates','Travel_Modes','Carriers','Time','Fixed Freight Cost','Port/Airport/Rail Handling Cost','Documentation Cost','Equipment Cost','Extra Cost','VariableFreightCost','Bunker/ Fuel Cost','Warehouse Cost','Transit Duty','Total Cost','OrderDate','ETA','Delivary_Date','DemandPullAhead'])
     datafinal_route = pd.DataFrame(columns=['Orderno','Source','Destination','Volume','Weight','Legs','Intermidiates','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Ready_Date','Plan_Ship_Date','ETA','Date','Week'])
     for orderindex in dictionary:
@@ -517,9 +515,9 @@ def display(dictionary,routedict = {}):
                 finaldat_['Date'] += ', {}'.format(route_[routeslice_I][14])
                 finaldat_['Week'] += ', {}'.format(route_[routeslice_I][15])
             datafinal_route.loc[len(datafinal_route.index)] = finaldat_
-    datafinal_route.to_excel(writer,sheet_name='ROUTING')
-    datafinal.to_excel(writer,sheet_name='cost')
-    writer.close()
+    with pd.ExcelWriter(outputxl, engine='openpyxl', mode='a') as writer:            
+        datafinal_route.to_excel(writer,sheet_name='ROUTING')
+        datafinal.to_excel(writer,sheet_name='cost')
 #................................................................................
 nodeindex = nodes.copy()
 routeunique()
