@@ -5,7 +5,7 @@ import datetime
 from pandas import Timestamp
 import pandas as pd
 import numpy as np
-from copy import deepcopy
+import time
 Tk().withdraw() 
 inputxl = askopenfilename(title='input')  
 outputxl  = askopenfilename(title = 'output')
@@ -122,7 +122,9 @@ def route(n : int,nid : list,ini : str ,fin :str ,finaldat=pd.DataFrame(data = N
         for i in range(n):
             new_paths.clear()
             for path in paths:
-                if not len(connections(data,path[-1]) - set(path)) or (i == n - 1 and fin not in connections(data,path[-1])):
+                if not len(connections(data,path[-1]) - set(path)):
+                    continue
+                if (i == n - 1 and fin not in connections(data,path[-1])):
                     continue
                 for node in connections(data,path[-1]) - set(path):
                     path.append(node)
@@ -519,8 +521,10 @@ def display(dictionary,routedict = {}):
         datafinal_route.to_excel(writer,sheet_name='ROUTING')
         datafinal.to_excel(writer,sheet_name='cost')
 #................................................................................
+print(time.localtime())
 nodeindex = nodes.copy()
 routeunique()
+print(time.localtime())
 # for i in d_route_unique:
 #     print(i)
 #     for j in d_route_unique[i]:
@@ -540,9 +544,9 @@ for inputslice in order_data.to_dict(orient='records'):
         t.append(tuple(datframe.itertuples(index=False,name=None)))
     d_route[(inputslice['Order Number'],inputslice['Order Value'],inputslice['Weight (KG)'],inputslice['Volume'],inputslice['Required Delivery Date'],inputslice['PullAheadDays'])] = tuple(t)
     t.clear()
-
+print(time.localtime())
 ETA(d_route)
-
+print(time.localtime())
 # for i in d_route:
 #     print(i)
 #     for j in d_route[i]:
@@ -550,6 +554,7 @@ ETA(d_route)
 #             print(k)
 #         print('\n')
 consolidate_Routes(d_route)
+print(time.localtime())
 # for i in d_consoildate:
 #     print(i)
 #     for j in d_consoildate[i]:
@@ -558,4 +563,6 @@ consolidate_Routes(d_route)
 #         print('\n')
 #     print('\n')
 cost(d_consoildate,d_route)
+print(time.localtime())
 display(d_cost,d_route)
+print(time.localtime())
