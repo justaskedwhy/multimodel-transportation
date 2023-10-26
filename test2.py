@@ -255,6 +255,7 @@ def converter(data : dict) -> pd.DataFrame:
         for frames_index in range(len(data[keys])):
             frames = data[keys][frames_index]
             mute_frame = frames.copy()
+            mute_frame['Size'] = frames.shape[0]
             mute_frame['Route_Number'] = frames_index
             mute_frame['Order_index'] = keys
             dat = pd.concat([dat,mute_frame])
@@ -343,27 +344,18 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
 two new fuctions or just one to decode the exsisting dataframe to a new dataframe and another to encode back to the 
 original form this is done so there won't be any time wasted on converting data from and to different data structures 
 while the code is running .'''
-def consoildation(orderno,route,routedictionary,consolidant):
-    fol = False
-    pt = consolidant.copy()
-    to_consolidate_df = pd.DataFrame(route,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Ready_Date','Plan_Ship_Date','ETA','Date','Week'])#dataframes are easy to work with
-    for orderindex in routedictionary:
-        if orderindex == orderno:
-            continue
-        routetuple = routedictionary[orderindex]
-        for root in routetuple:
-            if fol:#checks whether the order index has already used more than one time
-                fol = False
-                break
-            from_df = pd.DataFrame(root,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Ready_Date','Plan_Ship_Date','ETA','Date','Week'])
-            equaldf = to_consolidate_df.merge(from_df,on=['Source','Destination','Travel_Mode','Carrier','Week'],suffixes=('', '_DROP')).filter(regex='^(?!.*_DROP)')#finds commen rows to both dataframe
-            for i in range(len(equaldf)):
-                fol = True
-                equalrow = equaldf.loc[i]
-                index = pt.index[(consolidant['Source'] == equalrow['Source']) & (consolidant['Destination'] == equalrow['Destination']) & (consolidant['Travel_Mode'] == equalrow['Travel_Mode']) & (consolidant['Carrier'] == equalrow['Carrier']) & (consolidant['Week'] == equalrow['Week'])]
-                pt.loc[index,'Consolidant'] += str((orderindex,routetuple.index(root))) + ','#adds the route index to the column consolidation 
-    consolidant_tuple = tuple(pt.itertuples(index=False,name=None))
-    t_consolidate.append(consolidant_tuple)
+def consoildation(go_through : pd.DataFrame,route_info : pd.DataFrame) -> pd.Dataframe:
+    lookup = converter(route_info)
+    lookup['Consolids'] = ''
+    for legs in go_through.to_dict(orient='records'):
+        inter_df = lookup.loc[(lookup['Source'] == legs['Source']) & (lookup['Destination'] == legs['Destination']) & (lookup['Travel_Mode'] == legs['Travel_Mode']) & (lookup['Carriers'] == legs['Carriers'])]
+        weeks = list(inter_df['Week'].unique())
+        for week_no in weeks:
+            inter_df2 = inter_df.loc[(inter_df['Week'] == week_no)]
+            orders = set(inter_df2.get(['Route_number','Order_index']).itertuples(name = None))
+            for row_id in orders:
+                lookup.loc[(lookup.index == row_id[0]) & (lookup['Route_number'] == row_id[1]) & (lookup['Order_index'] == row_id[2]) & (lookup['Week'] == week_no),'Consolids'] = str(orders - str(row_id))
+    return lookup
 def consolidate_Routes(routes):
     one_stop = {}
     x = ()
