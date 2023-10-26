@@ -16,7 +16,7 @@ nodes = list(set(data['Source'].unique()).intersection(set(data['Destination'].u
 t = []
 t_consolidate = []
 t_consolidate_0 = []
-d_route_unique = {}
+d_route_unique = {tuple:tuple}
 d_route = {}
 d_consoildate = {}
 d_cost = {}
@@ -28,7 +28,7 @@ for dataslice in data_unique.to_dict(orient='records'):
 def connections(dframe : pd.DataFrame,val : str) -> set:
         data_node = dframe.loc[dframe['Source'] == val]
         return {*tuple(i[0] for i in data_node.get(['Destination']).itertuples(index = False,name = None))}
-def routeunique() -> pd.DataFrame:   
+def routeunique():   
     nodeindex = nodes.copy()
     order_unique = order_data.drop_duplicates(subset=['Ship From','Ship To'],keep='first')
     for uniqueslice in order_unique.to_dict(orient='records'):
@@ -39,7 +39,7 @@ def routeunique() -> pd.DataFrame:
             temp_list.extend(expand_route(data_frame,sdtc,[data_frame]))
         d_route_unique[(uniqueslice['Ship From'],uniqueslice['Ship To'])] = tuple(temp_list) 
         t.clear()
-def calvalue(route_info,volume_ut,weight_ut,total_ut,ratio,order_value):
+def calvalue(route_info ,volume_ut : float ,weight_ut : float ,total_ut : float,ratio : float,order_value : float) -> pd.DataFrame:
     #add methods to it with different methods segrigated into different sections
     dict = {}
     #method 1
@@ -55,7 +55,7 @@ def calvalue(route_info,volume_ut,weight_ut,total_ut,ratio,order_value):
     dict['WarehouseCost'] = [route_info['Warehouse Cost']*(volume_ut*route_info['Container Size'])*ratio]
     dict['TransitDuty'] = [route_info['Transit Duty']*order_value*ratio]
     return pd.DataFrame(dict)
-def variablefinder(travelmode,carrier,initial,final):
+def variablefinder(travelmode : str,carrier : str,initial : str,final : str) -> dict:
     variable = {}
     if not ((data['Travel Mode'] == travelmode) & (data['Carrier'] == carrier) & (data['Source']  == initial)  & (data['Destination'] == final)).any():#checks whether a row exist in the dataframe
         variable['transit_time'] = 0
@@ -71,7 +71,7 @@ def variablefinder(travelmode,carrier,initial,final):
     variable['MaxWeightPerEquipment'] = dataslice['MaxWeightPerEquipment'].item()
     variable['VolumetricWeightConversionFactor'] = dataslice['VolumetricWeightConversionFactor'].item()
     return variable
-def variablefinder_for_ETA(initial,final,travelmode,carrier):
+def variablefinder_for_ETA(initial : str,final : str,travelmode : str,carrier : str) -> dict:
     variables = {}
     dataslice = data.loc[(data['Travel Mode'] == travelmode) & (data['Source']  == initial)  & (data['Destination'] == final) & (data['Carrier'] == carrier)]
     
@@ -96,7 +96,7 @@ def pc_new(nid : list,dest : tuple) -> list:
             continue
         p_.remove(i)
     return p_
-def expand_route(initial_frame : pd.DataFrame , travel_carrier_dict : dict ,frame_list : list):
+def expand_route(initial_frame : pd.DataFrame , travel_carrier_dict : dict ,frame_list : list) -> list:
     for index in range(len(initial_frame.index)):
         Source = initial_frame.loc[index,'Source']
         Destination = initial_frame.loc[index,'Destination']
@@ -116,7 +116,7 @@ def expand_route(initial_frame : pd.DataFrame , travel_carrier_dict : dict ,fram
                 frame_list.append(to_append_df.copy())
         del frame_list[:size]
     return frame_list
-def route(n : int,nid : list,ini : str ,fin :str ,finaldat=pd.DataFrame(data = None,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor'])) -> pd.DataFrame:
+def route(n : int,nid : list,ini : str ,fin :str ,finaldat=pd.DataFrame(data = None,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor'])):
         paths = [ [ini,i] for i in connections(data,ini) ]
         new_paths = []
         for i in range(n):
@@ -140,7 +140,7 @@ def route(n : int,nid : list,ini : str ,fin :str ,finaldat=pd.DataFrame(data = N
                 finaldat = pd.concat([finaldat,pd.DataFrame(data = {finaldat.columns[i] : (path[index],[path[index + 1]])[i] if i < 2 else None for i in range(len(finaldat.columns))},columns = finaldat.columns,index=[0])],ignore_index = True)
             t.append(finaldat)
             finaldat = pd.DataFrame(columns= finaldat.columns)
-def ETA(Routes_Dict):
+def ETA(Routes_Dict : dict):
     from datetime import datetime, timedelta
     class ShippingDatesCalculator:
         def __init__(self,dataframe):
@@ -228,8 +228,9 @@ def ETA(Routes_Dict):
             ready_date = self.calculate_ready_date(plan_ship_date)
             return eta, initial_ship_date, plan_ship_date, ready_date
     for Order_Index in Routes_Dict:
+        Routes : pd.DataFrame
         for Routes in Routes_Dict[Order_Index]:
-            Routes_Df_inv = pd.DataFrame(Routes[::-1],columns = ['Source','Destination','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'])
+            Routes_Df_inv = Routes[::-1]
             col_list = [None for i in range(len(Routes_Df_inv.index))]
             Routes_Df_inv.insert(11,column = 'ETA',value = col_list)
             Routes_Df_inv.insert(11,column = 'Plan_Ship_Date',value = col_list)
@@ -245,8 +246,8 @@ def ETA(Routes_Dict):
                 if index == len(Routes_Df_inv.index) - 1:
                     continue
                 Routes_Df_inv.loc[index + 1,'Date'] = ready_date
-            new_tuple = tuple(Routes_Df_inv.itertuples(index=False,name=None))[::-1]
-            t.append(new_tuple)
+            new_route = Routes_Df_inv[::-1]
+            t.append(new_route)
         Routes_Dict[Order_Index] = tuple(t)
         t.clear()   
 def converter(data : dict) -> pd.DataFrame:
@@ -260,9 +261,22 @@ def converter(data : dict) -> pd.DataFrame:
             mute_frame['Order_index'] = keys
             dat = pd.concat([dat,mute_frame])
     return dat
+def deconverter(data : pd.DataFrame) -> dict:
+    return_dict = {}
+    order_unique = tuple(data['Order_index'].unique())
+    for order_index in order_unique:
+        inter1 : pd.DataFrame
+        inter1 = data.loc[(data['Order_index'] == order_index)]
+        route_unique = list(inter1['Route_number'].unique()).sort()
+        order_list = []
+        for route_number in route_unique:
+            inter2 : pd.DataFrame
+            inter2 = inter1.loc[(inter1['Route_number'] == route_number)].sort_index()
+            inter2.drop(['Order_index','Route_number','Size'],axis = 1)
+            order_list.append(inter2)
+        return_dict[order_index] = order_list
+    return return_dict
 def consolidation_0(zero_routes):#for only the routes having zero intermidiates, done in DemandPullAhead method
-    if len(zero_routes) == 0:
-        return#avoids error
     one_stop_df = pd.DataFrame(zero_routes,columns=['Order','Source','Destination','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Ready_Date','Plan_Ship_Date','ETA','Date','Week'])
     one_sort = one_stop_df.sort_values('Date',ignore_index=True)
     current_row_index = 0
@@ -344,7 +358,7 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
 two new fuctions or just one to decode the exsisting dataframe to a new dataframe and another to encode back to the 
 original form this is done so there won't be any time wasted on converting data from and to different data structures 
 while the code is running .'''
-def consoildation(go_through : pd.DataFrame,route_info : pd.DataFrame) -> pd.Dataframe:
+def consoildation(go_through : pd.DataFrame,route_info : pd.DataFrame) -> pd.DataFrame:
     lookup = converter(route_info)
     lookup['Consolids'] = ''
     for legs in go_through.to_dict(orient='records'):
@@ -356,28 +370,11 @@ def consoildation(go_through : pd.DataFrame,route_info : pd.DataFrame) -> pd.Dat
             for row_id in orders:
                 lookup.loc[(lookup.index == row_id[0]) & (lookup['Route_number'] == row_id[1]) & (lookup['Order_index'] == row_id[2]) & (lookup['Week'] == week_no),'Consolids'] = str(orders - str(row_id))
     return lookup
-def consolidate_Routes(routes):
-    one_stop = {}
-    x = ()
-    for orderindex in routes:
-        for route in routes[orderindex]:
-            if len(route) == 1:
-                x = one_stop.keys()
-                if not (route[0][:4]) in x:#( source,destination, travel mode, carrier)
-                    one_stop[route[0][:4]] = []
-                one_stop[(route[0][:4])].append(('{}'.format((orderindex)),) + (route[0]))#('orderindex',....,...,..)
-            df = pd.DataFrame(route,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Ready_Date','Plan_Ship_Date','ETA','Date','Week'])
-            df['Consolidant'] = ''
-            df['DemandPullAhead'] = False
-            #used in checking whether done through DemandPullAhead method
-            consoildation(orderindex,route,routes,df)
-        d_consoildate[orderindex] = tuple(t_consolidate)
-        t_consolidate.clear()
-    for one_stop_keys in one_stop:
-        consolidation_0(tuple(one_stop[one_stop_keys]))
-        for i in t_consolidate_0:
-            d_consoildate[eval(i[0])] += (i[1],)
-        t_consolidate_0.clear()
+def consolidate_Routes(routes : dict):
+    all_stops = consoildation(routes)
+    one_stops : pd.DataFrame
+    one_stops = all_stops.loc[(all_stops['Size'] == 1)]
+
 def cost(route_dict_con,route_dict):
     #add if api cloumn is true in future and do the pullahead into the excel itself as a column (must)
     for orderindex in route_dict_con:
@@ -420,7 +417,7 @@ def cost(route_dict_con,route_dict):
                 costslice += tuple(routenew_pd.itertuples(index=False,name=None))
             cost_tuple.append(costslice)
         d_cost[orderindex] = tuple(cost_tuple)
-def display(dictionary,routedict = {}):
+def display(dictionary : dict,routedict : dict = {}):
     datafinal = pd.DataFrame(columns=['Orderno','Source','Destination','Volume','Weight','Legs','Intermidiates','Travel_Modes','Carriers','Time','Fixed Freight Cost','Port/Airport/Rail Handling Cost','Documentation Cost','Equipment Cost','Extra Cost','VariableFreightCost','Bunker/ Fuel Cost','Warehouse Cost','Transit Duty','Total Cost','OrderDate','ETA','Delivary_Date','DemandPullAhead'])
     datafinal_route = pd.DataFrame(columns=['Orderno','Source','Destination','Volume','Weight','Legs','Intermidiates','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Ready_Date','Plan_Ship_Date','ETA','Date','Week'])
     for orderindex in dictionary:
@@ -538,7 +535,8 @@ print(time.localtime())
 #         print()
 #     print('\n\n\n')
 for inputslice in order_data.to_dict(orient='records'):
-    worktuple = d_route_unique[(inputslice['Ship From'],inputslice['Ship To'])]
+    worktuple = d_route_unique[(inputslice['Ship From'],inputslice['Ship To'])] 
+    datframe : pd.DataFrame
     for datframe in worktuple:
         rows = len(datframe.index)#'Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Date','Week'
         datframe['Weight_Utilitation'] = inputslice['Weight (KG)']/datframe['MaxWeightPerEquipment']
@@ -547,7 +545,7 @@ for inputslice in order_data.to_dict(orient='records'):
         datframe['Total_Time'] = [0 for i in range(rows)]
         datframe['Date'] = [inputslice['Required Delivery Date'] for i in range(rows)]
         datframe['Week'] = [datframe['Date'].to_list()[i].strftime('%Y-%V') for i in range(rows)]
-        t.append(tuple(datframe.itertuples(index=False,name=None)))
+        t.append(datframe.copy())
     d_route[(inputslice['Order Number'],inputslice['Order Value'],inputslice['Weight (KG)'],inputslice['Volume'],inputslice['Required Delivery Date'],inputslice['PullAheadDays'])] = tuple(t)
     t.clear()
 print(time.localtime())
