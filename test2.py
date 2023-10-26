@@ -248,7 +248,17 @@ def ETA(Routes_Dict):
             new_tuple = tuple(Routes_Df_inv.itertuples(index=False,name=None))[::-1]
             t.append(new_tuple)
         Routes_Dict[Order_Index] = tuple(t)
-        t.clear()    
+        t.clear()   
+def converter(data : dict) -> pd.DataFrame:
+    dat = pd.DataFrame()
+    for keys in data:
+        for frames_index in range(len(data[keys])):
+            frames = data[keys][frames_index]
+            mute_frame = frames.copy()
+            mute_frame['Route_Number'] = frames_index
+            mute_frame['Order_index'] = keys
+            dat = pd.concat([dat,mute_frame])
+    return dat
 def consolidation_0(zero_routes):#for only the routes having zero intermidiates, done in DemandPullAhead method
     if len(zero_routes) == 0:
         return#avoids error
@@ -329,6 +339,10 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
     for slice in range(one_sort.shape[0]):
         d_one_sort = one_sort.loc[slice].to_dict()
         t_consolidate_0.append((tuple(d_one_sort.values())[0],(tuple(d_one_sort.values())[1:],)))
+'''the change is going to be pretty big first we are going to use a new database to search elements so there will be 
+two new fuctions or just one to decode the exsisting dataframe to a new dataframe and another to encode back to the 
+original form this is done so there won't be any time wasted on converting data from and to different data structures 
+while the code is running .'''
 def consoildation(orderno,route,routedictionary,consolidant):
     fol = False
     pt = consolidant.copy()
