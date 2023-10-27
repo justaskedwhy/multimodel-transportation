@@ -17,8 +17,8 @@ t = []
 t_consolidate = []
 t_consolidate_0 = []
 d_route_unique = {tuple:tuple}
-d_route = {}
-d_consoildate = {}
+d_route = {tuple:tuple}
+d_consoildate = {tuple:tuple}
 d_cost = {}
 sdtc = {}
 data_unique = data.drop_duplicates(subset=['Source','Destination'],ignore_index=True)
@@ -276,9 +276,8 @@ def deconverter(data : pd.DataFrame) -> dict:
             order_list.append(inter2)
         return_dict[order_index] = order_list
     return return_dict
-def consolidation_0(zero_routes):#for only the routes having zero intermidiates, done in DemandPullAhead method
-    one_stop_df = pd.DataFrame(zero_routes,columns=['Order','Source','Destination','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Ready_Date','Plan_Ship_Date','ETA','Date','Week'])
-    one_sort = one_stop_df.sort_values('Date',ignore_index=True)
+def consolidation_0(zero_routes : pd.DataFrame):#for only the routes having zero intermidiates, done in DemandPullAhead method
+    one_sort = zero_routes.sort_values('Date',ignore_index=True)
     current_row_index = 0
     pullahead = eval(one_sort.loc[current_row_index,'Order'])[-1]
     added_volumn_ut = one_sort.loc[current_row_index,'Volume_Utilization']
@@ -351,9 +350,8 @@ def consolidation_0(zero_routes):#for only the routes having zero intermidiates,
         one_sort.loc[slice,'Volume_Utilization'] = added_volumn_ut
         one_sort.loc[slice,'Weight_Utilitation'] = added_weight_ut
     one_sort['DemandPullAhead'] = True
-    for slice in range(one_sort.shape[0]):
-        d_one_sort = one_sort.loc[slice].to_dict()
-        t_consolidate_0.append((tuple(d_one_sort.values())[0],(tuple(d_one_sort.values())[1:],)))
+    one_sort['Consolids'] = '()'
+    return one_sort
 '''the change is going to be pretty big first we are going to use a new database to search elements so there will be 
 two new fuctions or just one to decode the exsisting dataframe to a new dataframe and another to encode back to the 
 original form this is done so there won't be any time wasted on converting data from and to different data structures 
@@ -369,19 +367,36 @@ def consoildation(go_through : pd.DataFrame,route_info : pd.DataFrame) -> pd.Dat
             orders = set(inter_df2.get(['Route_number','Order_index']).itertuples(name = None))
             for row_id in orders:
                 lookup.loc[(lookup.index == row_id[0]) & (lookup['Route_number'] == row_id[1]) & (lookup['Order_index'] == row_id[2]) & (lookup['Week'] == week_no),'Consolids'] = str(orders - str(row_id))
+    lookup['DemandPullAhead'] = False
     return lookup
 def consolidate_Routes(routes : dict):
-    all_stops = consoildation(routes)
+    consolid1 = consoildation(routes)
     one_stops : pd.DataFrame
+    all_stops = converter(routes)
     one_stops = all_stops.loc[(all_stops['Size'] == 1)]
-
-def cost(route_dict_con,route_dict):
+    routes_unique = set(one_stops.get(['Source','Destination','Travel_mode','Carrier']).itertuple(ingnor_index = True,name = None))
+    consoild2 = pd.DataFrame()
+    for route_index in routes_unique:
+        one_stops_route_unique = one_stops.loc[(one_stops['Source'] == route_index[0]) & (one_stops['Destination'] == route_index[1]) & (one_stops['Travel_mode'] == route_index[2]) & (one_stops['Carrier'] == route_index[3])]
+        one_stops_route_unique = one_stops_route_unique.reset_index(drop = True)
+        consoild2 = pd.concat([consoild2,consolidation_0(one_stops_route_unique)],ignore_index=True)
+    consoild2.set_index(pd.Series([0 for i in range(consoild2.shape[0])]))
+    true_consolid_0 = deconverter(consoild2)
+    true_consolid = deconverter(consolid1)
+    for order_index in true_consolid_0:
+        true_consolid[order_index].extend(true_consolid_0[order_index])
+    for order_index in true_consolid:
+        true_consolid[order_index] = tuple(true_consolid[order_index])
+    d_consoildate.update(true_consolid)
+def cost(route_dict_con : dict,route_dict : dict):
     #add if api cloumn is true in future and do the pullahead into the excel itself as a column (must)
+    orderindex : tuple
     for orderindex in route_dict_con:
-        cost_tuple = []
+        cost_tuple = [] 
+        routes : pd.DataFrame
         for routes in route_dict_con[orderindex]:
             costslice = ()
-            for routeslice in routes:
+            for routeslice in routes.to_dict(orient='records'):
                 if routeslice[-1]:
                     routeslice_pd = pd.DataFrame((routeslice,),columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Ready_Date','Plan_Ship_Date','ETA','Date','Week','DemandPullAhead'])
                 else:
