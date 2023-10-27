@@ -395,16 +395,10 @@ def cost(route_dict_con : dict,route_dict : dict):
         cost_tuple = [] 
         routes : pd.DataFrame
         for routes in route_dict_con[orderindex]:
-            costslice = ()
+            costslice = pd.DataFrame
             for routeslice in routes.to_dict(orient='records'):
-                if routeslice[-1]:
-                    routeslice_pd = pd.DataFrame((routeslice,),columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Ready_Date','Plan_Ship_Date','ETA','Date','Week','DemandPullAhead'])
-                else:
-                    routeslice_pd = pd.DataFrame((routeslice,),columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MWpE','VWcF','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Ready_Date','Plan_Ship_Date','ETA','Date','Week','Consolids','DemandPullAhead'])
-                try:
-                    consolids = eval(routeslice_pd['Consolids'].item())
-                except:
-                    consolids = ()
+                routeslice_pd = pd.DataFrame(routeslice,index = [0])
+                consolids = eval(routeslice_pd['Consolids'].item())
                 consolids_volumn_ut,consolids_weight_ut = 0,0
                 for consolid_i in range(len(consolids)):
                     consolidable = consolids[consolid_i]
@@ -429,14 +423,15 @@ def cost(route_dict_con : dict,route_dict : dict):
                     route_ = data.loc[route_index].to_dict('records')
                     cost_pd = calvalue(route_[0],routeslice_pd['Volume_Utilization'].item(),routeslice_pd['Weight_Utilitation'].item(),total_ut,ratio,orderindex[1])
                 routenew_pd = routeslice_pd.merge(cost_pd,left_index=True,right_index=True)
-                costslice += tuple(routenew_pd.itertuples(index=False,name=None))
+                costslice = pd.concat([costslice,routenew_pd])
             cost_tuple.append(costslice)
         d_cost[orderindex] = tuple(cost_tuple)
 def display(dictionary : dict,routedict : dict = {}):
     datafinal = pd.DataFrame(columns=['Orderno','Source','Destination','Volume','Weight','Legs','Intermidiates','Travel_Modes','Carriers','Time','Fixed Freight Cost','Port/Airport/Rail Handling Cost','Documentation Cost','Equipment Cost','Extra Cost','VariableFreightCost','Bunker/ Fuel Cost','Warehouse Cost','Transit Duty','Total Cost','OrderDate','ETA','Delivary_Date','DemandPullAhead'])
     datafinal_route = pd.DataFrame(columns=['Orderno','Source','Destination','Volume','Weight','Legs','Intermidiates','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Ready_Date','Plan_Ship_Date','ETA','Date','Week'])
     for orderindex in dictionary:
-        for routes in dictionary[orderindex]:
+        for routes_df in dictionary[orderindex]:
+            routes = tuple(routes_df.itertuples(index=False,name=None))
             finaldat = {}
             finaldat['Orderno'] = orderindex[0]
             finaldat['Source'] = routes[0][0]
@@ -497,7 +492,8 @@ def display(dictionary : dict,routedict : dict = {}):
             finaldat['Total Cost'] = finaldat['Fixed Freight Cost'] + finaldat['Port/Airport/Rail Handling Cost'] + finaldat['Documentation Cost'] + finaldat['Equipment Cost'] + finaldat['Extra Cost'] + finaldat['VariableFreightCost'] + finaldat['Bunker/ Fuel Cost'] + finaldat['Warehouse Cost'] + finaldat['Transit Duty']
             datafinal.loc[len(datafinal.index)] = finaldat
     for orderindex_ in routedict:
-        for route_ in routedict[orderindex_]:
+        for route_df in routedict[orderindex_]:
+            route_ = tuple(route_df.itertuples(index=False,name=None))
             finaldat_ = {}
             finaldat_['Order'] = orderindex_[0]
             finaldat_['Source'] = route_[0][0]
