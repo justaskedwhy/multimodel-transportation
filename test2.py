@@ -127,6 +127,8 @@ def route(n : int,nid : list,ini : str ,fin :str ,finaldat=pd.DataFrame(data = N
                 if (i == n - 1 and fin not in connections(data,path[-1])):
                     continue
                 for node in connections(data,path[-1]) - set(path):
+                    if path[-1] == 'Destination US 2':
+                        raise ValueError
                     path.append(node)
                     if i == n - 1:
                         path.append(fin)
@@ -354,10 +356,6 @@ def consolidation_0(zero_routes : pd.DataFrame):#for only the routes having zero
     one_sort['DemandPullAhead'] = True
     one_sort['Consolids'] = '()'
     return one_sort
-'''the change is going to be pretty big first we are going to use a new database to search elements so there will be 
-two new fuctions or just one to decode the exsisting dataframe to a new dataframe and another to encode back to the 
-original form this is done so there won't be any time wasted on converting data from and to different data structures 
-while the code is running .'''
 def consoildation(go_through : pd.DataFrame,route_info : pd.DataFrame) -> pd.DataFrame:
     lookup = converter(route_info)
     lookup['Consolids'] = ''
