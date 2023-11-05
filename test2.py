@@ -27,7 +27,7 @@ for dataslice in data_unique.to_dict(orient='records'):
     sdtc[dataslice['Source'],dataslice['Destination']] = tuple(dataspec.get(['Travel Mode','Carrier']).itertuples(index = False,name = None))
 def connections(dframe : pd.DataFrame,val : str) -> set:
         data_node = dframe.loc[dframe['Source'] == val]
-        return {*tuple(i[0] for i in data_node.get(['Destination']).itertuples(index = False,name = None))}
+        return set(tuple(i[0] for i in data_node.get(['Destination']).itertuples(index = False,name = None)))
 def routeunique():   
     nodeindex = nodes.copy()
     order_unique = order_data.drop_duplicates(subset=['Ship From','Ship To'],keep='first')
@@ -127,8 +127,8 @@ def route(n : int,nid : list,ini : str ,fin :str ,finaldat=pd.DataFrame(data = N
                 if (i == n - 1 and fin not in connections(data,path[-1])):
                     continue
                 for node in connections(data,path[-1]) - set(path):
-                    if path[-1] == 'Destination US 2':
-                        raise ValueError
+                    if (i == n - 1) and (node != fin):
+                        continue
                     path.append(node)
                     if i == n - 1:
                         path.append(fin)
