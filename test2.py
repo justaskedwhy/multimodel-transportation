@@ -32,7 +32,7 @@ def routeunique():
     nodeindex = nodes.copy()
     order_unique = order_data.drop_duplicates(subset=['Ship From','Ship To'],keep='first')
     for uniqueslice in order_unique.to_dict(orient='records'):
-        for n in range(len(nodes)):
+        for n in range(len(nodes) + 1):
             route(n,pc_new(nodeindex,(uniqueslice['Ship From'],uniqueslice['Ship To'])),uniqueslice['Ship From'],uniqueslice['Ship To'],finaldat = pd.DataFrame(data = None,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor']))
         temp_list = []
         for data_frame in t:
@@ -127,12 +127,13 @@ def route(n : int,nid : list,ini : str ,fin :str ,finaldat=pd.DataFrame(data = N
                 if (i == n - 1 and fin not in connections(data,path[-1])):
                     continue
                 for node in connections(data,path[-1]) - set(path):
-                    if (i == n - 1) and (node != fin):
-                        continue
-                    path.append(node)
+                    # if (i == n - 1) and (node != fin):
+                    #     continue
                     if i == n - 1:
                         path.append(fin)
-                    new_paths.append(path)
+                    else:
+                        path.append(node)
+                    new_paths.append(path.copy())
                     path.pop()
             paths = new_paths.copy()
         if n == 0:
