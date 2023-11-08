@@ -127,9 +127,9 @@ def route(n : int,nid : list,ini : str ,fin :str ,finaldat=pd.DataFrame(data = N
                 if (i == n - 1 and fin not in connections(data,path[-1])):
                     continue
                 for node in connections(data,path[-1]) - set(path):
-                    # if (i == n - 1) and (node != fin):
-                    #     continue
-                    if i == n - 1:
+                    if (i == n - 1) and (node != fin):
+                        continue
+                    if (i == n - 1):
                         path.append(fin)
                     else:
                         path.append(node)
