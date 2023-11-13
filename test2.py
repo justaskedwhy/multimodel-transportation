@@ -291,7 +291,7 @@ def consolidation_0(zero_routes : pd.DataFrame):#for only the routes having zero
         current_date = one_sort.loc[current_row_index,'Date']
         current_row_volumn_ut = one_sort.loc[current_row_index,'Volume_Utilization']
         current_row_weight_ut = one_sort.loc[current_row_index,'Weight_Utilitation']
-        if (one_sort.loc[slice,'Weight_Utilitation'] == 0 and one_sort.loc[slice,'Volume_Utilization']) or current_row_index == slice:#checks if the next routes is more that pullahead days from the present route #and one_sort.loc[slice,'Date'] <start is experimental 
+        if (one_sort.loc[slice,'Weight_Utilitation'] == 0 and one_sort.loc[slice,'Volume_Utilization'] == 0) or current_row_index == slice:#checks if the next routes is more that pullahead days from the present route #and one_sort.loc[slice,'Date'] <start is experimental 
             continue
         if not (one_sort.loc[slice,'Date'] <= current_date + datetime.timedelta(days=pullahead)):
             one_sort.loc[current_row_index,'Volume_Utilization'] = added_volumn_ut
