@@ -18,7 +18,7 @@ t_consolidate = []
 t_consolidate_0 = []
 d_route_unique = {}
 d_route = {}
-d_consoildate = {}
+d_consoildate = pd.DataFrame()
 d_cost = {}
 sdtc = {}
 data_unique = data.drop_duplicates(subset=['Source','Destination'],ignore_index=True)
@@ -232,25 +232,23 @@ def ETA(Routes_Dict : dict):
     for Order_Index in Routes_Dict:
         Routes : pd.DataFrame
         for Routes in Routes_Dict[Order_Index]:
-            Routes_Df_inv = Routes[::-1]
-            col_list = [None for i in range(len(Routes_Df_inv.index))]
-            Routes_Df_inv.insert(11,column = 'ETA',value = col_list)
-            Routes_Df_inv.insert(11,column = 'Plan_Ship_Date',value = col_list)
-            Routes_Df_inv.insert(11,column = 'Ready_Date',value = col_list)
-            for index in range(len(Routes_Df_inv.index)):
-                var_dates = ShippingDatesCalculator(Routes_Df_inv.loc[index])
+            col_list = [None for i in range(len(Routes.index))]
+            Routes.insert(11,column = 'ETA',value = col_list)
+            Routes.insert(11,column = 'Plan_Ship_Date',value = col_list)
+            Routes.insert(11,column = 'Ready_Date',value = col_list)
+            for index in range(len(Routes.index) - 1,-1,-1):
+                var_dates = ShippingDatesCalculator(Routes.loc[index]) 
                 eta, initial_ship_date, plan_ship_date, ready_date = var_dates.calculate_shipping_dates()
-                Routes_Df_inv.loc[index,'ETA'] = eta
-                Routes_Df_inv.loc[index,'Plan_Ship_Date'] = plan_ship_date
-                Routes_Df_inv.loc[index,'Ready_Date'] = ready_date
-                Routes_Df_inv.loc[index,'Total_Time'] = Routes_Df_inv.loc[index,'Date'] - ready_date
+                Routes.loc[index,'ETA'] = eta
+                Routes.loc[index,'Plan_Ship_Date'] = plan_ship_date
+                Routes.loc[index,'Ready_Date'] = ready_date
+                Routes.loc[index,'Total_Time'] = Routes.loc[index,'Date'] - ready_date
                 #there is a kind of a error i think like the ready date is 2018 and the Date is 2023 check on this
-                Routes_Df_inv.loc[index,'Week'] = ready_date.strftime('%Y-%V')
-                if index == len(Routes_Df_inv.index) - 1:
+                Routes.loc[index,'Week'] = ready_date.strftime('%Y-%V')
+                if index == 0:
                     continue
-                Routes_Df_inv.loc[index + 1,'Date'] = ready_date
-            new_route = Routes_Df_inv[::-1]
-            t.append(new_route)
+                Routes.loc[index - 1,'Date'] = ready_date
+            t.append(Routes)
         Routes_Dict[Order_Index] = tuple(t)
         t.clear()   
 def converter(data : dict) -> pd.DataFrame:
@@ -370,6 +368,7 @@ def consoildation(go_through : pd.DataFrame,route_info : pd.DataFrame) -> pd.Dat
     lookup['DemandPullAhead'] = False
     return lookup
 def consolidate_Routes(routes : dict,leg_info : dict):
+    global d_consoildate
     consolid1 = consoildation(leg_info,routes)
     one_stops : pd.DataFrame
     all_stops = converter(routes)
@@ -381,13 +380,8 @@ def consolidate_Routes(routes : dict,leg_info : dict):
         one_stops_route_unique = one_stops_route_unique.reset_index(drop = True)
         consoild2 = pd.concat([consoild2,consolidation_0(one_stops_route_unique)],ignore_index=True)
     consoild2.set_index(pd.Series([0 for i in range(consoild2.shape[0])]))
-    true_consolid_0 = deconverter(consoild2)
-    true_consolid = deconverter(consolid1)
-    for order_index in true_consolid_0:
-        true_consolid[order_index].extend(true_consolid_0[order_index])
-    for order_index in true_consolid:
-        true_consolid[order_index] = tuple(true_consolid[order_index])
-    d_consoildate.update(true_consolid)
+    consolid3 = pd.concat([consolid1,consoild2])
+    d_consoildate = consolid3
 def cost(route_dict_con : dict,route_dict : dict):
     #add if api cloumn is true in future and do the pullahead into the excel itself as a column (must)
     orderindex : tuple
@@ -568,6 +562,7 @@ print(time.localtime())
 #             print(k)
 #         print('\n')
 consolidate_Routes(d_route,data)
+print(d_consoildate.to_string())
 print(time.localtime())
 # for i in d_consoildate:
 #     print(i)
