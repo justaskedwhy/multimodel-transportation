@@ -233,25 +233,23 @@ def ETA(Routes_Dict : dict):
     for Order_Index in Routes_Dict:
         Routes : pd.DataFrame
         for Routes in Routes_Dict[Order_Index]:
-            Routes_Df_inv = Routes[::-1]
-            col_list = [None for i in range(len(Routes_Df_inv.index))]
-            Routes_Df_inv.insert(11,column = 'ETA',value = col_list)
-            Routes_Df_inv.insert(11,column = 'Plan_Ship_Date',value = col_list)
-            Routes_Df_inv.insert(11,column = 'Ready_Date',value = col_list)
-            for index in range(len(Routes_Df_inv.index)):
-                var_dates = ShippingDatesCalculator(Routes_Df_inv.loc[index])
+            col_list = [None for i in range(len(Routes.index))]
+            Routes.insert(11,column = 'ETA',value = col_list)
+            Routes.insert(11,column = 'Plan_Ship_Date',value = col_list)
+            Routes.insert(11,column = 'Ready_Date',value = col_list)
+            for index in range(len(Routes.index) - 1,-1,-1):
+                var_dates = ShippingDatesCalculator(Routes.loc[index]) 
                 eta, initial_ship_date, plan_ship_date, ready_date = var_dates.calculate_shipping_dates()
-                Routes_Df_inv.loc[index,'ETA'] = eta
-                Routes_Df_inv.loc[index,'Plan_Ship_Date'] = plan_ship_date
-                Routes_Df_inv.loc[index,'Ready_Date'] = ready_date
-                Routes_Df_inv.loc[index,'Total_Time'] = Routes_Df_inv.loc[index,'Date'] - ready_date
+                Routes.loc[index,'ETA'] = eta
+                Routes.loc[index,'Plan_Ship_Date'] = plan_ship_date
+                Routes.loc[index,'Ready_Date'] = ready_date
+                Routes.loc[index,'Total_Time'] = Routes.loc[index,'Date'] - ready_date
                 #there is a kind of a error i think like the ready date is 2018 and the Date is 2023 check on this
-                Routes_Df_inv.loc[index,'Week'] = ready_date.strftime('%Y-%V')
-                if index == len(Routes_Df_inv.index) - 1:
+                Routes.loc[index,'Week'] = ready_date.strftime('%Y-%V')
+                if index == 0:
                     continue
-                Routes_Df_inv.loc[index + 1,'Date'] = ready_date
-            new_route = Routes_Df_inv[::-1]
-            t.append(new_route)
+                Routes.loc[index - 1,'Date'] = ready_date
+            t.append(Routes)
         Routes_Dict[Order_Index] = tuple(t)
         t.clear()   
 def converter(data : dict) -> pd.DataFrame:
