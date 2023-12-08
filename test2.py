@@ -385,6 +385,9 @@ def consolidate_Routes(routes : dict,leg_info : dict):
         one_stops_route_unique = one_stops_route_unique.reset_index(drop = True)
         consoild2 = pd.concat([consoild2,consolidation_0(one_stops_route_unique)],ignore_index=True)
     consoild2.set_index(pd.Series([0 for i in range(consoild2.shape[0])]))
+    consolid3 = pd.concat([consolid1,consoild2])
+    with pd.ExcelWriter(outputxl, engine='openpyxl', mode='a') as writer:            
+        consolid3.to_excel(writer,sheet_name='consolids')
     true_consolid_0 = deconverter(consoild2)
     true_consolid = deconverter(consolid1)
     for order_index in true_consolid_0:
