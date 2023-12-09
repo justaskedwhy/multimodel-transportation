@@ -129,10 +129,11 @@ def route(n : int,nid : list,ini : str ,fin :str ,finaldat=pd.DataFrame(data = N
                 for node in connections(data,path[-1]) - set(path):
                     if (i == n - 1) and (node != fin):
                         continue
-                    path.append(node)
-                    if i == n - 1:
+                    if (i == n - 1):
                         path.append(fin)
-                    new_paths.append(path)
+                    else:
+                        path.append(node)
+                    new_paths.append(path.copy())
                     path.pop()
             paths = new_paths.copy()
         if n == 0:
@@ -285,7 +286,7 @@ def consolidation_0(zero_routes : pd.DataFrame):#for only the routes having zero
         current_date = one_sort.loc[current_row_index,'Date']
         current_row_volumn_ut = one_sort.loc[current_row_index,'Volume_Utilization']
         current_row_weight_ut = one_sort.loc[current_row_index,'Weight_Utilitation']
-        if (one_sort.loc[slice,'Weight_Utilitation'] == 0 and one_sort.loc[slice,'Volume_Utilization']) or current_row_index == slice:#checks if the next routes is more that pullahead days from the present route #and one_sort.loc[slice,'Date'] <start is experimental 
+        if (one_sort.loc[slice,'Weight_Utilitation'] == 0 and one_sort.loc[slice,'Volume_Utilization'] == 0) or current_row_index == slice:#checks if the next routes is more that pullahead days from the present route #and one_sort.loc[slice,'Date'] <start is experimental 
             continue
         if not (one_sort.loc[slice,'Date'] <= current_date + datetime.timedelta(days=pullahead)):
             one_sort.loc[current_row_index,'Volume_Utilization'] = added_volumn_ut
@@ -344,10 +345,15 @@ def consolidation_0(zero_routes : pd.DataFrame):#for only the routes having zero
                     added_weight_ut = added_weight_ut - max_current_row_ut
                     added_volumn_ut = variable_row_volumn_ut - transfer_variable_row_volumn_ut
                     current_row_index =slice
+            case (False,False):
+                one_sort.loc[current_row_index,'Volume_Utilization'] = added_volumn_ut
+                one_sort.loc[current_row_index,'Weight_Utilitation'] = added_weight_ut
+                added_weight_ut = 0
+                added_volumn_ut = 0
         # one_sort.to_csv(r"C:\Users\vjr\Desktop\eqn.txt",sep='\t',mode='a')
     else:
-        one_sort.loc[slice,'Volume_Utilization'] = added_volumn_ut
-        one_sort.loc[slice,'Weight_Utilitation'] = added_weight_ut
+        one_sort.loc[slice,'Volume_Utilization'] = added_volumn_ut 
+        one_sort.loc[slice,'Weight_Utilitation'] = added_weight_ut 
     one_sort['DemandPullAhead'] = True
     one_sort['Consolids'] = '()'
     return one_sort
@@ -562,8 +568,7 @@ print(time.localtime())
 # for i in d_consoildate:
 #     print(i)
 #     for j in d_consoildate[i]:
-#         for k in j:
-#             print(k)
+#         print(j.to_dict())
 #         print('\n')
 #     print('\n')
 cost(d_consoildate)
