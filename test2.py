@@ -266,14 +266,12 @@ def converter(data : dict) -> pd.DataFrame:
 def deconverter(data : pd.DataFrame) -> dict[tuple,list[pd.DataFrame]]:
     return_dict = {}
     order_unique = data.drop_duplicates(subset=['Order_index','Route_Number','DemandPullAhead'],keep='first')[['Order_index','Route_Number','DemandPullAhead']]
-    print(list(order_unique['Order_index']))
     for order_index in list(order_unique['Order_index']):
         return_dict[eval(order_index)] = []
     for legindex,unique_ord in order_unique.iterrows():
         inter1 : pd.DataFrame
         inter1 = data.loc[(data['Order_index'] == unique_ord['Order_index'])&(data['Route_Number'] == unique_ord['Route_Number'])&(data['DemandPullAhead'] == unique_ord['DemandPullAhead'])]
         inter1 = inter1.drop(['Order_index','Route_Number','Size'],axis = 1)
-        print(inter1,'\n\n\n')
         return_dict[eval(unique_ord['Order_index'])] += [inter1]
     return return_dict
 def consolidation_0(zero_routes : pd.DataFrame):#for only the routes having zero intermidiates, done in DemandPullAhead method
@@ -384,6 +382,8 @@ def consolidate_Routes(routes : dict,leg_info : dict):
         consoild2 = pd.concat([consoild2,consolidation_0(one_stops_route_unique)],ignore_index=True)
     consoild2.set_index(pd.Series([0 for i in range(consoild2.shape[0])]))
     consolid3 = pd.concat([consolid1,consoild2])
+    with pd.ExcelWriter(outputxl, engine='openpyxl', mode='a') as writer:            
+        consolid3.to_excel(writer,sheet_name='CONSOLIDS')
     d_consoildate = consolid3
 def cost(route_dict_con : pd.DataFrame):
     global d_cost
@@ -572,12 +572,12 @@ print(time.localtime())
 #         print('\n')
 #     print('\n')
 cost(d_consoildate)
-for i in d_cost:
-    print(i)
-    for j in d_cost[i]:
-        print(j)
-        print('\n')
-    print('\n')
+# for i in d_cost:
+#     print(i)
+#     for j in d_cost[i]:
+#         print(j)
+#         print('\n')
+#     print('\n')
 print(time.localtime())
 display(d_cost,d_route)
 print(time.localtime())
