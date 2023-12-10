@@ -358,15 +358,15 @@ def consolidation_0(zero_routes : pd.DataFrame):#for only the routes having zero
 def consoildation(go_through : pd.DataFrame,route_info : pd.DataFrame) -> pd.DataFrame:
     lookup = converter(route_info)
     lookup['Consolids'] = ''
-    lookup['DemandPullAhead'] = False
     for legs in go_through.to_dict(orient='records'):
         inter_df = lookup.loc[(lookup['Source'] == legs['Source']) & (lookup['Destination'] == legs['Destination']) & (lookup['Travel_Mode'] == legs['Travel Mode']) & (lookup['Carrier'] == legs['Carrier'])]
         weeks = list(inter_df['Week'].unique())
         for week_no in weeks:
             inter_df2 = inter_df.loc[(inter_df['Week'] == week_no)]
-            orders = set(inter_df2.get(['Route_Number','Order_index','DemandPullAhead']).itertuples(name = None))
+            orders = set(inter_df2.get(['Route_Number','Order_index']).itertuples(name = None))
             for row_id in orders:
                 lookup.loc[(lookup.index == row_id[0]) & (lookup['Route_Number'] == row_id[1]) & (lookup['Order_index'] == row_id[2]) & (lookup['Week'] == week_no),'Consolids'] = str(tuple(orders - set((row_id,))))
+    lookup['DemandPullAhead'] = False
     return lookup
 def consolidate_Routes(routes : dict,leg_info : dict):
     global d_consoildate
