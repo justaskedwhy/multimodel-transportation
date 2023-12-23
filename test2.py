@@ -262,9 +262,11 @@ def converter(data : dict) -> pd.DataFrame:
             mute_frame['Route_Number'] = frames_index
             mute_frame['Order_index'] = str(keys)
             dat = pd.concat([dat,mute_frame])
+    dat.reset_index(inplace = True)
     return dat
 def deconverter(data : pd.DataFrame) -> dict[tuple,list[pd.DataFrame]]:
     return_dict = {}
+    data.set_index('index',inplace = True)
     order_unique = data.drop_duplicates(subset=['Order_index','Route_Number','DemandPullAhead'],keep='first')[['Order_index','Route_Number','DemandPullAhead']]
     for order_index in list(order_unique['Order_index']):
         return_dict[eval(order_index)] = []
@@ -276,6 +278,9 @@ def deconverter(data : pd.DataFrame) -> dict[tuple,list[pd.DataFrame]]:
     return return_dict
 def consolidation_0(zero_routes : pd.DataFrame):#for only the routes having zero intermidiates, done in DemandPullAhead method
     one_sort = zero_routes.sort_values('Date',ignore_index=True)
+    one_sort['Consolid_Id'] = None
+    one_sort['total_Volumn_Ut'] = None
+    one_sort['total_Weight_Ut'] = None
     current_row_index = 0
     pullahead = eval(one_sort.loc[current_row_index,'Order_index'])[-1]
     added_volumn_ut = one_sort.loc[current_row_index,'Volume_Utilization']
@@ -352,27 +357,33 @@ def consolidation_0(zero_routes : pd.DataFrame):#for only the routes having zero
     else:
         one_sort.loc[slice,'Volume_Utilization'] = added_volumn_ut 
         one_sort.loc[slice,'Weight_Utilitation'] = added_weight_ut 
+    one_sort['Consolid_Id'].update((one_sort['Source'] + one_sort['Destination'] + one_sort['Travel_Mode'] + one_sort['Carrier'] + one_sort['Order_index']).apply(hash))
+    one_sort['total_Volumn_Ut'] = one_sort['Volume_Utilization']
+    one_sort['total_Weight_Ut'] = one_sort['Weight_Utilitation']
     one_sort['DemandPullAhead'] = True
-    one_sort['Consolids'] = '()'
     return one_sort
 def consoildation(go_through : pd.DataFrame,route_info : pd.DataFrame) -> pd.DataFrame:
-    lookup = converter(route_info)
-    lookup['Consolids'] = ''
+    #think of a new way since the constrains have beed lifted so we don't need to send the index of each leg to the next function just total untilization is enough
+    lookup = route_info.copy()
+    lookup['Consolid_Id'] = None
+    lookup['total_Volumn_Ut'] = None
+    lookup['total_Weight_Ut'] = None
     for legs in go_through.to_dict(orient='records'):
         inter_df = lookup.loc[(lookup['Source'] == legs['Source']) & (lookup['Destination'] == legs['Destination']) & (lookup['Travel_Mode'] == legs['Travel Mode']) & (lookup['Carrier'] == legs['Carrier'])]
         weeks = list(inter_df['Week'].unique())
         for week_no in weeks:
             inter_df2 = inter_df.loc[(inter_df['Week'] == week_no)]
-            orders = set(inter_df2.get(['Route_Number','Order_index']).itertuples(name = None))
-            for row_id in orders:
-                lookup.loc[(lookup.index == row_id[0]) & (lookup['Route_Number'] == row_id[1]) & (lookup['Order_index'] == row_id[2]) & (lookup['Week'] == week_no),'Consolids'] = str(tuple(orders - set((row_id,))))
+            inter_df2.loc[:,'Consolid_Id'] = [hash(legs['Source'] + legs['Destination'] + legs['Travel Mode'] + legs['Carrier'] + week_no )]*(len(inter_df2))
+            inter_df2.loc[:,'total_Volumn_Ut'] = [inter_df2['Volume_Utilization'].sum()]*(len(inter_df2))
+            inter_df2.loc[:,'total_Weight_Ut'] = [inter_df2['Weight_Utilitation'].sum()]*(len(inter_df2))
+            lookup.update(inter_df2)
     lookup['DemandPullAhead'] = False
     return lookup
 def consolidate_Routes(routes : dict,leg_info : dict):
     global d_consoildate
-    consolid1 = consoildation(leg_info,routes)
     one_stops : pd.DataFrame
     all_stops = converter(routes)
+    consolid1 = consoildation(leg_info,all_stops)
     one_stops = all_stops.loc[(all_stops['Size'] == 1)]
     routes_unique = set(one_stops.get(['Source','Destination','Travel_Mode','Carrier']).itertuples(index = False,name = None))
     consoild2 = pd.DataFrame()
@@ -390,17 +401,10 @@ def cost(route_dict_con : pd.DataFrame):
     #add if api cloumn is true in future and do the pullahead into the excel itself as a column (must)
     orderindex : tuple
     cost = pd.DataFrame()
-    for legindex,legdict in route_dict_con.iterrows():
-        leg_pd = pd.DataFrame(legdict.to_dict(),index = [legindex])
-        consolids = eval(legdict['Consolids'])
-        consolids_volumn_ut,consolids_weight_ut = 0,0
-        for consolid_i in range(len(consolids)):
-            consolidable = consolids[consolid_i]
-            consolidslice = route_dict_con.loc[(route_dict_con.index == consolidable[0])&(route_dict_con['Route_Number'] == consolidable[1])&(route_dict_con['Order_index'] == consolidable[2])&(route_dict_con['DemandPullAhead'] == False)]
-            consolids_volumn_ut += consolidslice['Volume_Utilization'].item()
-            consolids_weight_ut += consolidslice['Weight_Utilitation'].item()
-        volumn_ut = legdict['Volume_Utilization'] + consolids_volumn_ut
-        weight_ut = legdict['Weight_Utilitation'] + consolids_weight_ut
+    for index,legdict in route_dict_con.iterrows():
+        leg_pd = pd.DataFrame(legdict.to_dict(),index = [index])
+        volumn_ut = legdict['total_Volumn_Ut']
+        weight_ut = legdict['total_Weight_Ut']
         total_volumn_ut = np.ceil(volumn_ut)
         total_weight_ut = np.ceil(weight_ut)
         total_ut = np.max((total_volumn_ut,total_weight_ut))
@@ -417,31 +421,31 @@ def cost(route_dict_con : pd.DataFrame):
             cost_pd = calvalue(route_[0],legdict['Volume_Utilization'],legdict['Weight_Utilitation'],total_ut,ratio,orderindex[1])
         legdict = leg_pd.to_dict(orient = 'records')[0]
         legdict.update(cost_pd.to_dict(orient= 'records')[0])
-        routenew_pd = pd.DataFrame(legdict,index = [legindex])
+        routenew_pd = pd.DataFrame(legdict,index = [index])
         cost = pd.concat([cost,routenew_pd])
     d_cost = deconverter(cost)
-def display(dictionary : dict,routedict : dict[tuple,list[pd.DataFrame]]):
+def display(dictionary : dict[tuple,list[pd.DataFrame]],routedict : dict[tuple,list[pd.DataFrame]]):
     datafinal = pd.DataFrame(columns=['Orderno','Source','Destination','Volume','Weight','Legs','Intermidiates','Travel_Modes','Carriers','Time','Fixed Freight Cost','Port/Airport/Rail Handling Cost','Documentation Cost','Equipment Cost','Extra Cost','VariableFreightCost','Bunker/ Fuel Cost','Warehouse Cost','Transit Duty','Total Cost','OrderDate','ETA','Delivary_Date','DemandPullAhead'])
     datafinal_route = pd.DataFrame(columns=['Orderno','Source','Destination','Volume','Weight','Legs','Intermidiates','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Ready_Date','Plan_Ship_Date','ETA','Date','Week'])
     for orderindex in dictionary:
         for routes_df in dictionary[orderindex]:
-            routes_df = routes_df.drop(['Consolids'],axis = 1)
+            col_to_index = dict(zip(routes_df.columns,range(len(routes_df.columns))))
             routes = tuple(routes_df.itertuples(index=False,name=None))
             finaldat = {}
             finaldat['Orderno'] = orderindex[0]
-            finaldat['Source'] = routes[0][0]
-            finaldat['Destination'] = routes[-1][1]
-            finaldat['Volume'] = routes[0][4]*routes[0][8]
-            finaldat['Weight'] = routes[0][5]*routes[0][7]
-            finaldat['Intermidiates'] = routes[0][0]
+            finaldat['Source'] = routes[0][col_to_index['Source']]
+            finaldat['Destination'] = routes[-1][col_to_index['Destination']]
+            finaldat['Volume'] = routes[0][col_to_index['Container_Size']]*routes[0][col_to_index['Volume_Utilization']]
+            finaldat['Weight'] = routes[0][col_to_index['MaxWeightPerEquipment']]*routes[0][col_to_index['Weight_Utilitation']]
+            finaldat['Intermidiates'] = ''
             finaldat['Legs'] = len(routes) - 1
             finaldat['Travel_Modes'] = ''
             finaldat['Carriers'] = ''
             finaldat['Time'] = datetime.timedelta()
-            finaldat['OrderDate'] = routes[0][11]
-            finaldat['ETA'] = routes[-1][13]
+            finaldat['OrderDate'] = routes[0][col_to_index['Ready_Date']]
+            finaldat['ETA'] = routes[-1][col_to_index['ETA']]
             finaldat['Delivary_Date'] = orderindex[-2]
-            finaldat['DemandPullAhead'] = routes[0][16]
+            finaldat['DemandPullAhead'] = routes[0][col_to_index['DemandPullAhead']]
             finaldat['Fixed Freight Cost'] = 0
             finaldat['Port/Airport/Rail Handling Cost'] = 0
             finaldat['Documentation Cost'] = 0
@@ -451,37 +455,21 @@ def display(dictionary : dict,routedict : dict[tuple,list[pd.DataFrame]]):
             finaldat['Bunker/ Fuel Cost'] = 0
             finaldat['Warehouse Cost'] = 0
             finaldat['Transit Duty'] = 0
-            if type(finaldat['DemandPullAhead']) == str:
-                finaldat['DemandPullAhead'] = routes[0][17]  
-                for routeslice_i in range(0,len(routes)):
-                    finaldat['Intermidiates'] += '--->' + routes[routeslice_i][1]
-                    finaldat['Travel_Modes'] += routes[routeslice_i][2] + ','
-                    finaldat['Carriers'] +=  routes[routeslice_i][3] + ',' 
-                    finaldat['Time'] += routes[routeslice_i][10]
-                    finaldat['Fixed Freight Cost'] += routes[routeslice_i][18]
-                    finaldat['Port/Airport/Rail Handling Cost'] += routes[routeslice_i][19]
-                    finaldat['Documentation Cost'] += routes[routeslice_i][20]
-                    finaldat['Equipment Cost'] += routes[routeslice_i][21]
-                    finaldat['Extra Cost'] += routes[routeslice_i][22]
-                    finaldat['VariableFreightCost'] += routes[routeslice_i][23]
-                    finaldat['Bunker/ Fuel Cost'] += routes[routeslice_i][24]
-                    finaldat['Warehouse Cost'] += routes[routeslice_i][25]
-                    finaldat['Transit Duty'] += routes[routeslice_i][26]
-            else:
-                for routeslice_i in range(0,len(routes)):
-                    finaldat['Intermidiates'] += '--->' + routes[routeslice_i][1]
-                    finaldat['Travel_Modes'] +=   routes[routeslice_i][2] + ','
-                    finaldat['Carriers'] +=   routes[routeslice_i][3] + ','
-                    finaldat['Time'] = finaldat['Time'] + routes[routeslice_i][10]
-                    finaldat['Fixed Freight Cost'] += routes[routeslice_i][17]
-                    finaldat['Port/Airport/Rail Handling Cost'] += routes[routeslice_i][18]
-                    finaldat['Documentation Cost'] += routes[routeslice_i][19]
-                    finaldat['Equipment Cost'] += routes[routeslice_i][20]
-                    finaldat['Extra Cost'] += routes[routeslice_i][21]
-                    finaldat['VariableFreightCost'] += routes[routeslice_i][22]
-                    finaldat['Bunker/ Fuel Cost'] += routes[routeslice_i][23]
-                    finaldat['Warehouse Cost'] += routes[routeslice_i][24]
-                    finaldat['Transit Duty'] += routes[routeslice_i][25]
+            for routeslice_i in range(0,len(routes)):
+                finaldat['Intermidiates'] += '--->' + routes[routeslice_i][col_to_index['Destination']]
+                finaldat['Travel_Modes'] += routes[routeslice_i][col_to_index['Travel_Mode']] + ','
+                finaldat['Carriers'] +=  routes[routeslice_i][col_to_index['Carrier']] + ',' 
+                finaldat['Time'] += routes[routeslice_i][col_to_index['Total_Time']]
+                finaldat['Fixed Freight Cost'] += routes[routeslice_i][col_to_index['FixedFreightCost']]
+                finaldat['Port/Airport/Rail Handling Cost'] += routes[routeslice_i][col_to_index['Port/Airport/RailHandlingCost']]
+                finaldat['Documentation Cost'] += routes[routeslice_i][col_to_index['DocumentationCost']]
+                finaldat['Equipment Cost'] += routes[routeslice_i][col_to_index['EquipmentCost']]
+                finaldat['Extra Cost'] += routes[routeslice_i][col_to_index['ExtraCost']]
+                finaldat['VariableFreightCost'] += routes[routeslice_i][col_to_index['VariableFreightCost']]
+                finaldat['Bunker/ Fuel Cost'] += routes[routeslice_i][col_to_index['Bunker/FuelCost']]
+                finaldat['Warehouse Cost'] += routes[routeslice_i][col_to_index['WarehouseCost']]
+                finaldat['Transit Duty'] += routes[routeslice_i][col_to_index['TransitDuty']]
+            finaldat['Intermidiates'] = finaldat['Intermidiates'].rstrip('--->' + finaldat['Destination']).lstrip('-->')
             finaldat['Carriers'] = finaldat['Carriers'][:-1]
             finaldat['Travel_Modes'] = finaldat['Travel_Modes'][:-1] 
             finaldat['Total Cost'] = finaldat['Fixed Freight Cost'] + finaldat['Port/Airport/Rail Handling Cost'] + finaldat['Documentation Cost'] + finaldat['Equipment Cost'] + finaldat['Extra Cost'] + finaldat['VariableFreightCost'] + finaldat['Bunker/ Fuel Cost'] + finaldat['Warehouse Cost'] + finaldat['Transit Duty']
@@ -495,7 +483,7 @@ def display(dictionary : dict,routedict : dict[tuple,list[pd.DataFrame]]):
             finaldat_['Destination'] = route_[-1][1]
             finaldat_['Volume'] = orderindex_[3]
             finaldat_['Weight'] = orderindex_[2]
-            finaldat_['Intermidiates'] =route_[0][0] + '--->' + route_[0][1]
+            finaldat_['Intermidiates'] = ''
             finaldat_['Legs'] = len(route_) - 1
             finaldat_['Travel_Mode'] = route_[0][2]
             finaldat_['Carrier'] = route_[0][3]
@@ -512,7 +500,7 @@ def display(dictionary : dict,routedict : dict[tuple,list[pd.DataFrame]]):
             finaldat_['Date'] = '{}'.format(route_[0][14])
             finaldat_['Week'] = route_[0][15]
             for routeslice_I in range(1,len(route_)):
-                finaldat_['Intermidiates'] += '--->' + route_[routeslice_I][1]
+                finaldat_['Intermidiates'] += route_[routeslice_I][0] + '-->'
                 finaldat_['Travel_Mode'] += ',' + route_[routeslice_I][2]
                 finaldat_['Carrier'] += ',' + route_[routeslice_I][3]
                 finaldat_['Container_Size'] += ',' +'{}'.format(route_[routeslice_I][4])
@@ -525,6 +513,7 @@ def display(dictionary : dict,routedict : dict[tuple,list[pd.DataFrame]]):
                 finaldat_['ETA'] += ', {}'.format(route_[routeslice_I][13])
                 finaldat_['Date'] += ', {}'.format(route_[routeslice_I][14])
                 finaldat_['Week'] += ', {}'.format(route_[routeslice_I][15])
+            finaldat_['Intermidiates'] = finaldat_['Intermidiates'].rstrip('-->')
             datafinal_route.loc[len(datafinal_route.index)] = finaldat_
     with pd.ExcelWriter(outputxl, engine='openpyxl', mode='a') as writer:            
         datafinal_route.to_excel(writer,sheet_name='ROUTING')
