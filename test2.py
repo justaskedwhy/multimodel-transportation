@@ -357,7 +357,7 @@ def consolidation_0(zero_routes : pd.DataFrame):#for only the routes having zero
     else:
         one_sort.loc[slice,'Volume_Utilization'] = added_volumn_ut 
         one_sort.loc[slice,'Weight_Utilitation'] = added_weight_ut 
-    one_sort['Consolid_Id'].update((one_sort['Source'] + one_sort['Destination'] + one_sort['Travel_Mode'] + one_sort['Carrier'] + one_sort['Order_index']).apply(hash))
+    one_sort['Consolid_Id'].update((one_sort['Source'] + one_sort['Destination'] + one_sort['Travel_Mode'] + one_sort['Carrier'] + one_sort['Order_index']).apply(hash).apply(hex))
     one_sort['total_Volumn_Ut'] = one_sort['Volume_Utilization']
     one_sort['total_Weight_Ut'] = one_sort['Weight_Utilitation']
     one_sort['DemandPullAhead'] = True
@@ -373,7 +373,7 @@ def consoildation(go_through : pd.DataFrame,route_info : pd.DataFrame) -> pd.Dat
         weeks = list(inter_df['Week'].unique())
         for week_no in weeks:
             inter_df2 = inter_df.loc[(inter_df['Week'] == week_no)]
-            inter_df2.loc[:,'Consolid_Id'] = [hash(legs['Source'] + legs['Destination'] + legs['Travel Mode'] + legs['Carrier'] + week_no )]*(len(inter_df2))
+            inter_df2.loc[:,'Consolid_Id'] = [hex(hash(legs['Source'] + legs['Destination'] + legs['Travel Mode'] + legs['Carrier'] + week_no ))]*(len(inter_df2))
             inter_df2.loc[:,'total_Volumn_Ut'] = [inter_df2['Volume_Utilization'].sum()]*(len(inter_df2))
             inter_df2.loc[:,'total_Weight_Ut'] = [inter_df2['Weight_Utilitation'].sum()]*(len(inter_df2))
             lookup.update(inter_df2)
