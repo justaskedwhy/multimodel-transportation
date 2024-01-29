@@ -306,7 +306,7 @@ def consolidation_0(zero_routes : pd.DataFrame):#for only the routes having zero
         one_sort.loc[slice,'Weight_Utilitation'] = 0
         added_volumn_ut += variable_row_volumn_ut 
         added_weight_ut += variable_row_weight_ut 
-        condition = (bool(added_volumn_ut >= np.ceil(current_row_volumn_ut)) and (added_volumn_ut != 0 or current_row_volumn_ut != 0),bool(added_weight_ut >= np.ceil(current_row_weight_ut)) and (added_weight_ut != 0 or current_row_weight_ut != 0))
+        condition = (bool(added_volumn_ut >= np.ceil(current_row_volumn_ut)) and ( np.ceil(current_row_volumn_ut) != 0),bool(added_weight_ut >= np.ceil(current_row_weight_ut)) and (np.ceil(current_row_weight_ut) != 0))
         match condition:
             case (True,False):
                 ratio = np.divide(np.ceil(current_row_volumn_ut)-added_volumn_ut+variable_row_volumn_ut,variable_row_volumn_ut)
