@@ -285,12 +285,12 @@ def consolidation_0(zero_routes : pd.DataFrame):#for only the routes having zero
     one_sort['total_Weight_Ut'] = None
     current_row_index = 0
     pullahead = eval(one_sort.loc[current_row_index,'Order_index'])[-1]
-    added_volumn_ut = one_sort.loc[current_row_index,'Volume_Utilization']
-    added_weight_ut = one_sort.loc[current_row_index,'Weight_Utilitation']
     for slice in range(one_sort.shape[0]):
         current_date = one_sort.loc[current_row_index,'Date']
         current_row_volumn_ut = one_sort.loc[current_row_index,'Volume_Utilization']
         current_row_weight_ut = one_sort.loc[current_row_index,'Weight_Utilitation']
+        added_volumn_ut = current_row_volumn_ut
+        added_weight_ut = current_row_weight_ut
         if (one_sort.loc[slice,'Weight_Utilitation'] == 0 and one_sort.loc[slice,'Volume_Utilization'] == 0) or current_row_index == slice:#checks if the next routes is more that pullahead days from the present route #and one_sort.loc[slice,'Date'] <start is experimental 
             continue
         if not (one_sort.loc[slice,'Date'] <= current_date + datetime.timedelta(days=pullahead)):
@@ -302,12 +302,17 @@ def consolidation_0(zero_routes : pd.DataFrame):#for only the routes having zero
             continue
         variable_row_volumn_ut = one_sort.loc[slice,'Volume_Utilization']
         variable_row_weight_ut = one_sort.loc[slice,'Weight_Utilitation']
-        one_sort.loc[slice,'Volume_Utilization'] = 0
-        one_sort.loc[slice,'Weight_Utilitation'] = 0
+        # one_sort.loc[slice,'Volume_Utilization'] = 0
+        # one_sort.loc[slice,'Weight_Utilitation'] = 0
         added_volumn_ut += variable_row_volumn_ut 
         added_weight_ut += variable_row_weight_ut 
         condition = (bool(added_volumn_ut >= np.ceil(current_row_volumn_ut)) and ( np.ceil(current_row_volumn_ut) != 0),bool(added_weight_ut >= np.ceil(current_row_weight_ut)) and (np.ceil(current_row_weight_ut) != 0))
         match condition:
+            case (False,False):
+                one_sort.loc[current_row_index,'Volume_Utilization'] = added_volumn_ut
+                one_sort.loc[current_row_index,'Weight_Utilitation'] = added_weight_ut
+                one_sort.loc[slice,'Volume_Utilization'] = 0
+                one_sort.loc[slice,'Weight_Utilitation'] = 0
             case (True,False):
                 ratio = np.divide(np.ceil(current_row_volumn_ut)-added_volumn_ut+variable_row_volumn_ut,variable_row_volumn_ut)
                 transfer_variable_row_weight_ut = np.multiply(ratio,variable_row_weight_ut)
@@ -315,8 +320,6 @@ def consolidation_0(zero_routes : pd.DataFrame):#for only the routes having zero
                 one_sort.loc[slice,'Volume_Utilization'] = added_volumn_ut - np.ceil(current_row_volumn_ut)
                 one_sort.loc[current_row_index,'Weight_Utilitation'] = added_weight_ut - variable_row_weight_ut + transfer_variable_row_weight_ut
                 one_sort.loc[slice,'Weight_Utilitation'] = variable_row_weight_ut - transfer_variable_row_weight_ut
-                added_volumn_ut = added_volumn_ut - np.ceil(current_row_volumn_ut)
-                added_weight_ut = variable_row_weight_ut - transfer_variable_row_weight_ut
                 current_row_index = slice
             case (False,True):
                 ratio = np.divide(np.ceil(current_row_weight_ut) - added_weight_ut + variable_row_weight_ut, variable_row_weight_ut)
@@ -325,8 +328,6 @@ def consolidation_0(zero_routes : pd.DataFrame):#for only the routes having zero
                 one_sort.loc[slice,'Weight_Utilitation'] = added_weight_ut - np.ceil(current_row_weight_ut) 
                 one_sort.loc[current_row_index,'Volume_Utilization'] = added_volumn_ut - variable_row_volumn_ut + transfer_variable_row_volumn_ut
                 one_sort.loc[slice,'Volume_Utilization'] = variable_row_volumn_ut - transfer_variable_row_volumn_ut
-                added_weight_ut = added_weight_ut - np.ceil(current_row_weight_ut) 
-                added_volumn_ut = variable_row_volumn_ut - transfer_variable_row_volumn_ut
                 current_row_index =slice
             case (True,True):
                 max_current_row_ut = np.max((np.ceil(current_row_weight_ut),np.ceil(current_row_volumn_ut)))
@@ -338,8 +339,6 @@ def consolidation_0(zero_routes : pd.DataFrame):#for only the routes having zero
                     one_sort.loc[slice,'Volume_Utilization'] = added_volumn_ut - max_current_row_ut
                     one_sort.loc[current_row_index,'Weight_Utilitation'] = added_weight_ut - variable_row_weight_ut + transfer_variable_row_weight_ut
                     one_sort.loc[slice,'Weight_Utilitation'] = variable_row_weight_ut - transfer_variable_row_weight_ut
-                    added_volumn_ut = added_volumn_ut - max_current_row_ut
-                    added_weight_ut = variable_row_weight_ut - transfer_variable_row_weight_ut
                     current_row_index = slice
                 else:
                     transfer_variable_row_volumn_ut = np.multiply(ratio_W,variable_row_volumn_ut)
@@ -347,18 +346,8 @@ def consolidation_0(zero_routes : pd.DataFrame):#for only the routes having zero
                     one_sort.loc[slice,'Weight_Utilitation'] = added_weight_ut - max_current_row_ut
                     one_sort.loc[current_row_index,'Volume_Utilization'] = added_volumn_ut - variable_row_volumn_ut + transfer_variable_row_volumn_ut
                     one_sort.loc[slice,'Volume_Utilization'] = variable_row_volumn_ut - transfer_variable_row_volumn_ut
-                    added_weight_ut = added_weight_ut - max_current_row_ut
-                    added_volumn_ut = variable_row_volumn_ut - transfer_variable_row_volumn_ut
                     current_row_index =slice
-            case (False,False):
-                one_sort.loc[current_row_index,'Volume_Utilization'] = added_volumn_ut
-                one_sort.loc[current_row_index,'Weight_Utilitation'] = added_weight_ut
-                added_weight_ut = 0
-                added_volumn_ut = 0
-        # one_sort.to_csv(r"C:\Users\vjr\Desktop\eqn.txt",sep='\t',mode='a')
-    else:
-        one_sort.loc[slice,'Volume_Utilization'] = added_volumn_ut 
-        one_sort.loc[slice,'Weight_Utilitation'] = added_weight_ut 
+        # one_sort.to_csv(r"C:\Users\krish\OneDrive\Desktop\again\tex.txt",sep='\t',mode='a')
     one_sort['Consolid_Id'].update((one_sort['Source'] + one_sort['Destination'] + one_sort['Travel_Mode'] + one_sort['Carrier'] + one_sort['Order_index']).apply(hash).apply(hex))
     one_sort['total_Volumn_Ut'] = one_sort['Volume_Utilization']
     one_sort['total_Weight_Ut'] = one_sort['Weight_Utilitation']
