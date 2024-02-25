@@ -7,6 +7,10 @@ import pandas as pd
 import numpy as np
 import time
 Tk().withdraw() 
+from tkinter import simpledialog 
+root = Tk()
+root.withdraw()
+instance_name = simpledialog.askstring("Instance Name","enter name:\t\t\t")
 inputxl = askopenfilename(title='input')  
 outputxl  = askopenfilename(title = 'output')
 book = load_workbook(r'{}'.format(outputxl))
@@ -411,13 +415,14 @@ def cost(route_dict_con : pd.DataFrame):
         cost = pd.concat([cost,routenew_pd])
     d_cost = deconverter(cost)
 def display(dictionary : dict[tuple,list[pd.DataFrame]],routedict : dict[tuple,list[pd.DataFrame]]):
-    datafinal = pd.DataFrame(columns=['Orderno','Source','Destination','Volume','Weight','Legs','Intermidiates','Travel_Modes','Carriers','Time','Fixed Freight Cost','Port/Airport/Rail Handling Cost','Documentation Cost','Equipment Cost','Extra Cost','VariableFreightCost','Bunker/ Fuel Cost','Warehouse Cost','Transit Duty','Total Cost','OrderDate','ETA','Delivary_Date','DemandPullAhead'])
-    datafinal_route = pd.DataFrame(columns=['Orderno','Source','Destination','Volume','Weight','Legs','Intermidiates','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Ready_Date','Plan_Ship_Date','ETA','Date','Week'])
+    datafinal = pd.DataFrame(columns=['Instance Name','Orderno','Source','Destination','Volume','Weight','Legs','Intermidiates','Travel_Modes','Carriers','Time','Fixed Freight Cost','Port/Airport/Rail Handling Cost','Documentation Cost','Equipment Cost','Extra Cost','VariableFreightCost','Bunker/ Fuel Cost','Warehouse Cost','Transit Duty','Total Cost','OrderDate','ETA','Delivary_Date','DemandPullAhead'])
+    datafinal_route = pd.DataFrame(columns=['Instance Name','Orderno','Source','Destination','Volume','Weight','Legs','Intermidiates','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Ready_Date','Plan_Ship_Date','ETA','Date','Week'])
     for orderindex in dictionary:
         for routes_df in dictionary[orderindex]:
             col_to_index = dict(zip(routes_df.columns,range(len(routes_df.columns))))
             routes = tuple(routes_df.itertuples(index=False,name=None))
             finaldat = {}
+            finaldat['Instance Name'] = instance_name
             finaldat['Orderno'] = orderindex[0]
             finaldat['Source'] = routes[0][col_to_index['Source']]
             finaldat['Destination'] = routes[-1][col_to_index['Destination']]
@@ -455,7 +460,7 @@ def display(dictionary : dict[tuple,list[pd.DataFrame]],routedict : dict[tuple,l
                 finaldat['Bunker/ Fuel Cost'] += routes[routeslice_i][col_to_index['Bunker/FuelCost']]
                 finaldat['Warehouse Cost'] += routes[routeslice_i][col_to_index['WarehouseCost']]
                 finaldat['Transit Duty'] += routes[routeslice_i][col_to_index['TransitDuty']]
-            finaldat['Intermidiates'] = finaldat['Intermidiates'].rstrip(finaldat['Destination']).rstrip("---> ").lstrip('--->')
+            finaldat['Intermidiates'] = finaldat['Intermidiates'].rstrip(finaldat['Destination']).rstrip("---> ").lstrip(' --->')
             finaldat['Carriers'] = finaldat['Carriers'][:-1]
             finaldat['Travel_Modes'] = finaldat['Travel_Modes'][:-1] 
             finaldat['Total Cost'] = finaldat['Fixed Freight Cost'] + finaldat['Port/Airport/Rail Handling Cost'] + finaldat['Documentation Cost'] + finaldat['Equipment Cost'] + finaldat['Extra Cost'] + finaldat['VariableFreightCost'] + finaldat['Bunker/ Fuel Cost'] + finaldat['Warehouse Cost'] + finaldat['Transit Duty']
@@ -464,6 +469,7 @@ def display(dictionary : dict[tuple,list[pd.DataFrame]],routedict : dict[tuple,l
         for route_df in routedict[orderindex_]:
             route_ = tuple(route_df.itertuples(index=False,name=None))
             finaldat_ = {}
+            finaldat_['Instance Name'] = instance_name
             finaldat_['Order'] = orderindex_[0]
             finaldat_['Source'] = route_[0][0]
             finaldat_['Destination'] = route_[-1][1]
