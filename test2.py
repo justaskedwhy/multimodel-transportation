@@ -294,10 +294,6 @@ def consolidation_0(zero_routes : pd.DataFrame):#for only the routes having zero
         if (one_sort.loc[slice,'Weight_Utilitation'] == 0 and one_sort.loc[slice,'Volume_Utilization'] == 0) or current_row_index == slice:#checks if the next routes is more that pullahead days from the present route #and one_sort.loc[slice,'Date'] <start is experimental 
             continue
         if not (one_sort.loc[slice,'Date'] <= current_date + datetime.timedelta(days=pullahead)):
-            one_sort.loc[current_row_index,'Volume_Utilization'] = added_volumn_ut
-            one_sort.loc[current_row_index,'Weight_Utilitation'] = added_weight_ut
-            added_volumn_ut = one_sort.loc[slice,'Volume_Utilization']
-            added_weight_ut = one_sort.loc[slice,'Weight_Utilitation']
             current_row_index = slice
             continue
         variable_row_volumn_ut = one_sort.loc[slice,'Volume_Utilization']
@@ -446,7 +442,7 @@ def display(dictionary : dict[tuple,list[pd.DataFrame]],routedict : dict[tuple,l
             finaldat['Warehouse Cost'] = 0
             finaldat['Transit Duty'] = 0
             for routeslice_i in range(0,len(routes)):
-                finaldat['Intermidiates'] += '--->' + routes[routeslice_i][col_to_index['Destination']]
+                finaldat['Intermidiates'] += ' ---> ' + routes[routeslice_i][col_to_index['Destination']]
                 finaldat['Travel_Modes'] += routes[routeslice_i][col_to_index['Travel_Mode']] + ','
                 finaldat['Carriers'] +=  routes[routeslice_i][col_to_index['Carrier']] + ',' 
                 finaldat['Time'] += routes[routeslice_i][col_to_index['Total_Time']]
@@ -459,7 +455,7 @@ def display(dictionary : dict[tuple,list[pd.DataFrame]],routedict : dict[tuple,l
                 finaldat['Bunker/ Fuel Cost'] += routes[routeslice_i][col_to_index['Bunker/FuelCost']]
                 finaldat['Warehouse Cost'] += routes[routeslice_i][col_to_index['WarehouseCost']]
                 finaldat['Transit Duty'] += routes[routeslice_i][col_to_index['TransitDuty']]
-            finaldat['Intermidiates'] = finaldat['Intermidiates'].rstrip('--->' + finaldat['Destination']).lstrip('-->')
+            finaldat['Intermidiates'] = finaldat['Intermidiates'].rstrip(finaldat['Destination']).rstrip("---> ").lstrip('--->')
             finaldat['Carriers'] = finaldat['Carriers'][:-1]
             finaldat['Travel_Modes'] = finaldat['Travel_Modes'][:-1] 
             finaldat['Total Cost'] = finaldat['Fixed Freight Cost'] + finaldat['Port/Airport/Rail Handling Cost'] + finaldat['Documentation Cost'] + finaldat['Equipment Cost'] + finaldat['Extra Cost'] + finaldat['VariableFreightCost'] + finaldat['Bunker/ Fuel Cost'] + finaldat['Warehouse Cost'] + finaldat['Transit Duty']
