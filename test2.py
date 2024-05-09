@@ -301,7 +301,7 @@ def consolidation_0(zero_routes : pd.DataFrame):#for only the routes having zero
             current_row_index = slice
             continue
         variable_row_volumn_ut = one_sort.loc[slice,'Volume_Utilization']
-        variable_row_weight_ut = one_sort.loc[slice,'Weight_Utilitation']
+        variable_row_weight_ut = one_sort.loc[slice,'Weight_Utilitation'] 
         # one_sort.loc[slice,'Volume_Utilization'] = 0
         # one_sort.loc[slice,'Weight_Utilitation'] = 0
         added_volumn_ut += variable_row_volumn_ut 
@@ -329,10 +329,10 @@ def consolidation_0(zero_routes : pd.DataFrame):#for only the routes having zero
             one_sort.loc[slice,'Volume_Utilization'] = variable_row_volumn_ut - transfer_variable_row_volumn_ut
             current_row_index =slice
         elif condition == (True,True):
-            max_current_row_ut = np.max((np.ceil(current_row_weight_ut),np.ceil(current_row_volumn_ut)))
             ratio_V = np.divide(np.ceil(current_row_volumn_ut) - current_row_volumn_ut, variable_row_volumn_ut)
             ratio_W = np.divide(np.ceil(current_row_weight_ut) - current_row_weight_ut, variable_row_weight_ut)
             if ratio_V <= ratio_W:
+                max_current_row_ut = np.ceil(current_row_volumn_ut)
                 transfer_variable_row_weight_ut = np.multiply(ratio_V,variable_row_weight_ut)
                 one_sort.loc[current_row_index,'Volume_Utilization'] = max_current_row_ut
                 one_sort.loc[slice,'Volume_Utilization'] = added_volumn_ut - max_current_row_ut
@@ -340,6 +340,7 @@ def consolidation_0(zero_routes : pd.DataFrame):#for only the routes having zero
                 one_sort.loc[slice,'Weight_Utilitation'] = variable_row_weight_ut - transfer_variable_row_weight_ut
                 current_row_index = slice
             else:
+                max_current_row_ut = np.ceil(current_row_weight_ut)
                 transfer_variable_row_volumn_ut = np.multiply(ratio_W,variable_row_volumn_ut)
                 one_sort.loc[current_row_index,'Weight_Utilitation'] = max_current_row_ut
                 one_sort.loc[slice,'Weight_Utilitation'] = added_weight_ut - max_current_row_ut
