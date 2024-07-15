@@ -61,7 +61,7 @@ def calvalue(route_info ,volume_ut : float ,weight_ut : float ,total_ut : float,
     dict['WarehouseCost'] = [route_info['Warehouse Cost']*(volume_ut*route_info['Container Size'])*ratio]
     dict['TransitDuty'] = [route_info['Transit Duty']*order_value*ratio]
     dict['Totalcost'] = [(dict['Bunker/FuelCost'][0] + dict['DocumentationCost'][0] + dict['EquipmentCost'][0] + dict['ExtraCost'][0] + dict['FixedFreightCost'][0] + dict['Port/Airport/RailHandlingCost'][0] + dict['TransitDuty'][0] + dict['VariableFreightCost'][0] + dict['WarehouseCost'][0])]
-    if dict['Totalcost'][0] < route_info['Min_Cost']:
+    if dict['Totalcost'][0] < route_info['Minimum Cost']:
         dict['FixedFreightCost'] = [0]
         dict['Port/Airport/RailHandlingCost'] = [0]
         dict['DocumentationCost'] = [0]
@@ -71,7 +71,7 @@ def calvalue(route_info ,volume_ut : float ,weight_ut : float ,total_ut : float,
         dict['Bunker/FuelCost'] = [0]
         dict['WarehouseCost'] = [0]
         dict['TransitDuty'] = [0]
-        dict['Totalcost'] = [route_info['Min_Cost']*ratio]
+        dict['Totalcost'] = [route_info['Minimum Cost']*ratio]
     return pd.DataFrame(dict)
 def variablefinder(travelmode : str,carrier : str,initial : str,final : str) -> dict:
     variable = {}
