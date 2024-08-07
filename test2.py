@@ -6,6 +6,7 @@ from pandas import Timedelta, Timestamp
 import pandas as pd
 import numpy as np
 import time
+import json
 Tk().withdraw() 
 from tkinter import simpledialog 
 root = Tk()
@@ -122,15 +123,13 @@ def expand_route(initial_frame : pd.DataFrame , travel_carrier_dict : dict ,fram
         for frames_index in range(len(frame_list)):
             for travel_mode,carrier in travel_carrier_dict[(Source,Destination)]:
                 variables = variablefinder(travel_mode,carrier,Source,Destination)
-                Container_Size = variables['MaxVolumePerEquipment']  
-                MaxWeightPerEquipment = variables['MaxWeightPerEquipment'] 
-                VolumetricWeightConversionFactor = variables['VolumetricWeightConversionFactor'] 
                 to_append_df = frame_list[frames_index].copy()
                 to_append_df.loc[index,'Travel_Mode'] = travel_mode
                 to_append_df.loc[index,'Carrier'] = carrier
-                to_append_df.loc[index,'Container_Size'] = Container_Size
-                to_append_df.loc[index,'MaxWeightPerEquipment'] = MaxWeightPerEquipment
-                to_append_df.loc[index,'VolumetricWeightConversionFactor'] = VolumetricWeightConversionFactor
+                to_append_df.loc[index,'Container_Size'] = variables['MaxVolumePerEquipment'] 
+                to_append_df.loc[index,'MaxWeightPerEquipment'] = variables['MaxWeightPerEquipment']
+                to_append_df.loc[index,'VolumetricWeightConversionFactor'] = variables['VolumetricWeightConversionFactor']
+                to_append_df.loc[index,'Confindence_Level'] = variables['ConfidenceLevel']
                 frame_list.append(to_append_df.copy())
         del frame_list[:size]
     return frame_list
@@ -269,7 +268,7 @@ def ETA(Routes_Dict : dict):
                 Routes.loc[index - 1,'Date'] = ready_date
             t.append(Routes)
         Routes_Dict[Order_Index] = tuple(t)
-        t.clear()   
+        t.clear()
 def converter(data : dict) -> pd.DataFrame:
     dat = pd.DataFrame()
     for keys in data:
