@@ -17,6 +17,7 @@ outputxl  = askopenfilename(title = 'output')
 book = load_workbook(r'{}'.format(outputxl))
 data = pd.read_excel(inputxl,sheet_name='Route Information')
 order_data = pd.read_excel(inputxl,sheet_name='Order Information')
+order_unique = order_data.drop_duplicates(subset=['Ship From','Ship To'],keep='first')
 nodes = list(set(data['Source'].unique()).intersection(set(data['Destination'].unique())))
 t = []
 t_consolidate = []
@@ -35,7 +36,6 @@ def connections(dframe : pd.DataFrame,val : str) -> set:
         return set(tuple(i[0] for i in data_node.get(['Destination']).itertuples(index = False,name = None)))
 def routeunique():   
     nodeindex = nodes.copy()
-    order_unique = order_data.drop_duplicates(subset=['Ship From','Ship To'],keep='first')
     for uniqueslice in order_unique.to_dict(orient='records'):
         for n in range(len(nodes) + 1):
             route(n,pc_new(nodeindex,(uniqueslice['Ship From'],uniqueslice['Ship To'])),uniqueslice['Ship From'],uniqueslice['Ship To'],finaldat = pd.DataFrame(data = None,columns=['Source','Destination','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor']))
@@ -86,7 +86,7 @@ def variablefinder(travelmode : str,carrier : str,initial : str,final : str) -> 
     variable['extra_time'] = dataslice['Extra Time'].item()
     variable['transit_time'] = dataslice['Transit time (hours)'].item()
     variable['MaxVolumePerEquipment'] = dataslice['Container Size'].item()
-    variable['ConfidenceLevel'] = dataslice['ConfidenceLevel'].item()
+    variable['Confidence Level'] = dataslice['ConfidenceLevel'].item()
     variable['MaxWeightPerEquipment'] = dataslice['MaxWeightPerEquipment'].item()
     variable['VolumetricWeightConversionFactor'] = dataslice['VolumetricWeightConversionFactor'].item()
     return variable
@@ -129,7 +129,7 @@ def expand_route(initial_frame : pd.DataFrame , travel_carrier_dict : dict ,fram
                 to_append_df.loc[index,'Container_Size'] = variables['MaxVolumePerEquipment'] 
                 to_append_df.loc[index,'MaxWeightPerEquipment'] = variables['MaxWeightPerEquipment']
                 to_append_df.loc[index,'VolumetricWeightConversionFactor'] = variables['VolumetricWeightConversionFactor']
-                to_append_df.loc[index,'Confindence_Level'] = variables['ConfidenceLevel']
+                to_append_df.loc[index,'Confidence_Level'] = variables['Confidence Level']
                 frame_list.append(to_append_df.copy())
         del frame_list[:size]
     return frame_list
@@ -396,8 +396,8 @@ def consolidate_Routes(routes : dict,leg_info : dict):
         consoild2 = pd.concat([consoild2,consolidation_0(one_stops_route_unique)],ignore_index=True)
     consoild2.set_index(pd.Series([0 for i in range(consoild2.shape[0])]))
     consolid3 = pd.concat([consolid1,consoild2])
-    with pd.ExcelWriter(outputxl, engine='openpyxl', mode='a') as writer:            
-        consolid3.to_excel(writer,sheet_name='CONSOLIDS')
+    # with pd.ExcelWriter(outputxl, engine='openpyxl', mode='a') as writer:            
+    #     consolid3.to_excel(writer,sheet_name='CONSOLIDS')
     d_consoildate = consolid3
 def cost(route_dict_con : pd.DataFrame):
     global d_cost
@@ -426,9 +426,11 @@ def cost(route_dict_con : pd.DataFrame):
         legdict.update(cost_pd.to_dict(orient= 'records')[0])
         routenew_pd = pd.DataFrame(legdict,index = [index])
         cost = pd.concat([cost,routenew_pd])
+    # with pd.ExcelWriter(outputxl,engine='openpyxl',mode = 'a') as writer:
+    #     cost.to_excel(writer,sheet_name="leg wise cost")
     d_cost = deconverter(cost)
 def display(dictionary : dict[tuple,list[pd.DataFrame]],routedict : dict[tuple,list[pd.DataFrame]]):
-    datafinal = pd.DataFrame(columns=['Instance Name','Orderno','Source','Destination','Volume','Weight','Legs','Intermidiates','Travel_Modes','Carriers','Time','Fixed Freight Cost','Port/Airport/Rail Handling Cost','Documentation Cost','Equipment Cost','Extra Cost','VariableFreightCost','Bunker/ Fuel Cost','Warehouse Cost','Transit Duty','Total Cost','OrderDate','ETA','Delivary_Date','DemandPullAhead'])
+    datafinal = pd.DataFrame(columns=['Instance Name','Orderno','Source','Destination','Volume','Weight','Legs','Intermidiates','Travel_Modes','Carriers','Time','Fixed Freight Cost','Port/Airport/Rail Handling Cost','Documentation Cost','Equipment Cost','Extra Cost','VariableFreightCost','Bunker/ Fuel Cost','Warehouse Cost','Transit Duty','Total Cost','OrderDate','ETA','Delivary_Date','Confidence Level','Confidence Level Rank','DemandPullAhead'])
     datafinal_route = pd.DataFrame(columns=['Instance Name','Orderno','Source','Destination','Volume','Weight','Legs','Intermidiates','Travel_Mode','Carrier','Container_Size','MaxWeightPerEquipment','VolumetricWeightConversionFactor','Weight_Utilitation','Volume_Utilization','order_value','Total_Time','Ready_Date','Plan_Ship_Date','ETA','Date','Week'])
     for orderindex in dictionary:
         for routes_df in dictionary[orderindex]:
@@ -460,6 +462,7 @@ def display(dictionary : dict[tuple,list[pd.DataFrame]],routedict : dict[tuple,l
             finaldat['Warehouse Cost'] = 0
             finaldat['Transit Duty'] = 0
             finaldat['Total Cost'] = 0
+            finaldat['Confidence Level'] = 1
             for routeslice_i in range(0,len(routes)):
                 finaldat['Intermidiates'] += ' ---> ' + routes[routeslice_i][col_to_index['Destination']]
                 finaldat['Travel_Modes'] += routes[routeslice_i][col_to_index['Travel_Mode']] + ','
@@ -475,54 +478,31 @@ def display(dictionary : dict[tuple,list[pd.DataFrame]],routedict : dict[tuple,l
                 finaldat['Warehouse Cost'] += routes[routeslice_i][col_to_index['WarehouseCost']]
                 finaldat['Transit Duty'] += routes[routeslice_i][col_to_index['TransitDuty']]
                 finaldat['Total Cost'] += routes[routeslice_i][col_to_index['Totalcost']]
+                finaldat['Confidence Level'] *= routes[routeslice_i][col_to_index['Confidence_Level']]
             finaldat['Intermidiates'] = finaldat['Intermidiates'].rstrip(finaldat['Destination']).rstrip("---> ").lstrip(' --->')
             finaldat['Carriers'] = finaldat['Carriers'][:-1]
             finaldat['Travel_Modes'] = finaldat['Travel_Modes'][:-1] 
             datafinal.loc[len(datafinal.index)] = finaldat
-    for orderindex_ in routedict:
-        for route_df in routedict[orderindex_]:
-            route_ = tuple(route_df.itertuples(index=False,name=None))
-            finaldat_ = {}
-            finaldat_['Instance Name'] = instance_name
-            finaldat_['Order'] = orderindex_[0]
-            finaldat_['Source'] = route_[0][0]
-            finaldat_['Destination'] = route_[-1][1]
-            finaldat_['Volume'] = orderindex_[3]
-            finaldat_['Weight'] = orderindex_[2]
-            finaldat_['Intermidiates'] = ''
-            finaldat_['Legs'] = len(route_) - 1
-            finaldat_['Travel_Mode'] = route_[0][2]
-            finaldat_['Carrier'] = route_[0][3]
-            finaldat_['Container_Size'] = '{}'.format(route_[0][4])
-            finaldat_['MaxWeightPerEquipment'] = '{}'.format(route_[0][5])
-            finaldat_['VolumetricWeightConversionFactor'] = '{}'.format(route_[0][6])
-            finaldat_['Weight_Utilitation'] = '{}'.format(route_[0][7])
-            finaldat_['Volume_Utilization'] = '{}'.format(route_[0][8])
-            finaldat_['order_value'] = route_[0][9]
-            finaldat_['Total_Time'] = route_[0][10]
-            finaldat_['Ready_Date'] = '{}'.format(route_[0][11])
-            finaldat_['Plan_Ship_Date'] = '{}'.format(route_[0][12])
-            finaldat_['ETA'] = '{}'.format(route_[0][13])
-            finaldat_['Date'] = '{}'.format(route_[0][14])
-            finaldat_['Week'] = route_[0][15]
-            for routeslice_I in range(1,len(route_)):
-                finaldat_['Intermidiates'] += route_[routeslice_I][0] + '-->'
-                finaldat_['Travel_Mode'] += ',' + route_[routeslice_I][2]
-                finaldat_['Carrier'] += ',' + route_[routeslice_I][3]
-                finaldat_['Container_Size'] += ',' +'{}'.format(route_[routeslice_I][4])
-                finaldat_['MaxWeightPerEquipment'] += ',' +'{}'.format(route_[routeslice_I][5])
-                finaldat_['VolumetricWeightConversionFactor'] += ',' +'{}'.format(route_[routeslice_I][6])
-                finaldat_['Weight_Utilitation'] += ',' +'{}'.format(route_[routeslice_I][7])
-                finaldat_['Volume_Utilization'] += ',' +'{}'.format(route_[routeslice_I][8])
-                finaldat_['Ready_Date'] += ', {}'.format(route_[routeslice_I][11])
-                finaldat_['Plan_Ship_Date'] += ', {}'.format(route_[routeslice_I][12])
-                finaldat_['ETA'] += ', {}'.format(route_[routeslice_I][13])
-                finaldat_['Date'] += ', {}'.format(route_[routeslice_I][14])
-                finaldat_['Week'] += ', {}'.format(route_[routeslice_I][15])
-            finaldat_['Intermidiates'] = finaldat_['Intermidiates'].rstrip('-->')
-            datafinal_route.loc[len(datafinal_route.index)] = finaldat_
+    for Source_destination in order_unique.to_dict(orient='records'):
+        hold_df1 : pd.DataFrame
+        hold_df2 : pd.DataFrame
+        hold_df1 = datafinal.loc[(datafinal['Source'] == Source_destination['Ship From']) & (datafinal['Destination'] == Source_destination['Ship To']) & (datafinal['DemandPullAhead'])]
+        hold_df2 = datafinal.loc[(datafinal['Source'] == Source_destination['Ship From']) & (datafinal['Destination'] == Source_destination['Ship To']) & (datafinal['DemandPullAhead'] == False)]
+        hold_df1 = hold_df1.sort_values('Confidence Level')
+        hold_df2 = hold_df2.sort_values('Confidence Level')
+        hold_df1['Confidence Level Rank'] = hold_df1.loc[:,'Confidence Level']
+        hold_df2['Confidence Level Rank'] = hold_df2.loc[:,'Confidence Level']
+        Confidence_Level_Unique = hold_df1.loc[:,'Confidence Level Rank'].unique()
+        Confidence_Level_Unique.sort()
+        Confidence_Level_rankDict = {Confidence_Level_Unique[i] : i + 1 for i in range(Confidence_Level_Unique.size)}
+        hold_df1 = hold_df1.replace({"Confidence Level Rank" : Confidence_Level_rankDict})
+        Confidence_Level_Unique = hold_df2.loc[:,'Confidence Level Rank'].unique()
+        Confidence_Level_Unique.sort()
+        Confidence_Level_rankDict = {Confidence_Level_Unique[i] : i + 1 for i in range(Confidence_Level_Unique.size)}
+        hold_df2 = hold_df2.replace({"Confidence Level Rank" : Confidence_Level_rankDict})
+        datafinal.update(hold_df1)
+        datafinal.update(hold_df2)
     with pd.ExcelWriter(outputxl, engine='openpyxl', mode='a') as writer:            
-        datafinal_route.to_excel(writer,sheet_name='ROUTING')
         datafinal.to_excel(writer,sheet_name='cost')
 #................................................................................
 print(time.localtime())
