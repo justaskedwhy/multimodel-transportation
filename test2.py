@@ -18,6 +18,7 @@ book = load_workbook(r'{}'.format(outputxl))
 data = pd.read_excel(inputxl,sheet_name='Route Information')
 order_data = pd.read_excel(inputxl,sheet_name='Order Information')
 order_unique = order_data.drop_duplicates(subset=['Ship From','Ship To'],keep='first')
+order_unique_Idates = order_data.drop_duplicates(subset=['Ship From','Ship To','Required Delivery Date'],keep='first')
 nodes = list(set(data['Source'].unique()).intersection(set(data['Destination'].unique())))
 t = []
 t_consolidate = []
@@ -396,8 +397,8 @@ def consolidate_Routes(routes : dict,leg_info : dict):
         consoild2 = pd.concat([consoild2,consolidation_0(one_stops_route_unique)],ignore_index=True)
     consoild2.set_index(pd.Series([0 for i in range(consoild2.shape[0])]))
     consolid3 = pd.concat([consolid1,consoild2])
-    with pd.ExcelWriter(outputxl, engine='openpyxl', mode='a') as writer:            
-        consolid3.to_excel(writer,sheet_name='CONSOLIDS')
+    # with pd.ExcelWriter(outputxl, engine='openpyxl', mode='a') as writer:            
+    #     consolid3.to_excel(writer,sheet_name='CONSOLIDS')
     d_consoildate = consolid3
 def cost(route_dict_con : pd.DataFrame):
     global d_cost
@@ -483,22 +484,24 @@ def display(dictionary : dict[tuple,list[pd.DataFrame]],routedict : dict[tuple,l
             finaldat['Carriers'] = finaldat['Carriers'][:-1]
             finaldat['Travel_Modes'] = finaldat['Travel_Modes'][:-1] 
             datafinal.loc[len(datafinal.index)] = finaldat
-    for Source_destination in order_unique.to_dict(orient='records'):
+    for Source_destination in order_unique_Idates.to_dict(orient='records'):
         hold_df1 : pd.DataFrame
         hold_df2 : pd.DataFrame
-        hold_df1 = datafinal.loc[(datafinal['Source'] == Source_destination['Ship From']) & (datafinal['Destination'] == Source_destination['Ship To']) & (datafinal['DemandPullAhead'])]
-        hold_df2 = datafinal.loc[(datafinal['Source'] == Source_destination['Ship From']) & (datafinal['Destination'] == Source_destination['Ship To']) & (datafinal['DemandPullAhead'] == False)]
+        hold_df : pd.DataFrame
+        hold_df = datafinal.loc[(datafinal['Source'] == Source_destination['Ship From']) & (datafinal['Destination'] == Source_destination['Ship To']) & (datafinal['Delivary_Date'] == Source_destination['Required Delivery Date'])]
+        hold_df1 = hold_df.loc[(hold_df['DemandPullAhead'])]
+        hold_df2 = hold_df.loc[(hold_df['DemandPullAhead'] == False)]
         hold_df1 = hold_df1.sort_values('Confidence Level')
         hold_df2 = hold_df2.sort_values('Confidence Level')
         hold_df1['Confidence Level Rank'] = hold_df1.loc[:,'Confidence Level']
         hold_df2['Confidence Level Rank'] = hold_df2.loc[:,'Confidence Level']
         Confidence_Level_Unique = hold_df1.loc[:,'Confidence Level Rank'].unique()
         Confidence_Level_Unique.sort()
-        Confidence_Level_rankDict = {Confidence_Level_Unique[i] : i + 1 for i in range(Confidence_Level_Unique.size)}
+        Confidence_Level_rankDict = {Confidence_Level_Unique[i] : Confidence_Level_Unique.size - i for i in range(Confidence_Level_Unique.size)}
         hold_df1 = hold_df1.replace({"Confidence Level Rank" : Confidence_Level_rankDict})
         Confidence_Level_Unique = hold_df2.loc[:,'Confidence Level Rank'].unique()
         Confidence_Level_Unique.sort()
-        Confidence_Level_rankDict = {Confidence_Level_Unique[i] : i + 1 for i in range(Confidence_Level_Unique.size)}
+        Confidence_Level_rankDict = {Confidence_Level_Unique[i] : Confidence_Level_Unique.size - i for i in range(Confidence_Level_Unique.size)}
         hold_df2 = hold_df2.replace({"Confidence Level Rank" : Confidence_Level_rankDict})
         datafinal.update(hold_df1)
         datafinal.update(hold_df2)
