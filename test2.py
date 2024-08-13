@@ -396,8 +396,8 @@ def consolidate_Routes(routes : dict,leg_info : dict):
         consoild2 = pd.concat([consoild2,consolidation_0(one_stops_route_unique)],ignore_index=True)
     consoild2.set_index(pd.Series([0 for i in range(consoild2.shape[0])]))
     consolid3 = pd.concat([consolid1,consoild2])
-    # with pd.ExcelWriter(outputxl, engine='openpyxl', mode='a') as writer:            
-    #     consolid3.to_excel(writer,sheet_name='CONSOLIDS')
+    with pd.ExcelWriter(outputxl, engine='openpyxl', mode='a') as writer:            
+        consolid3.to_excel(writer,sheet_name='CONSOLIDS')
     d_consoildate = consolid3
 def cost(route_dict_con : pd.DataFrame):
     global d_cost
